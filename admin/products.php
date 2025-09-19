@@ -508,6 +508,47 @@ $products = $stmt->fetchAll();
             gap: 0.5rem;
             justify-content: center;
             flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-methods {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            justify-content: center;
+        }
+        
+        .upload-method {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-method.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+            color: #667eea;
+        }
+        
+        .url-input-container {
+            display: none;
+            margin-top: 1rem;
+            gap: 0.5rem;
+        }
+        
+        .url-input-container.active {
+            display: flex;
+        }
+        
+        .url-input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 1rem;
         }
         
         .upload-progress {
@@ -658,9 +699,19 @@ $products = $stmt->fetchAll();
                                 
                                 <div class="image-upload-container">
                                     <div class="current-image" id="currentImage">
-                                        <?php if (!empty($product['gambar']) && file_exists("../assets/images/products/" . $product['gambar'])): ?>
-                                            <img src="../assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
-                                                 alt="Current image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
+                                        <?php if (!empty($product['gambar'])): ?>
+                                            <?php if (filter_var($product['gambar'], FILTER_VALIDATE_URL)): ?>
+                                                <img src="<?= htmlspecialchars($product['gambar']) ?>" 
+                                                     alt="Current image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
+                                            <?php elseif (file_exists("../assets/images/products/" . $product['gambar'])): ?>
+                                                <img src="../assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
+                                                     alt="Current image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
+                                            <?php else: ?>
+                                                <div class="no-image">
+                                                    <div style="font-size: 4rem; color: #ccc;">🧴</div>
+                                                    <p>Belum ada gambar</p>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <div class="no-image">
                                                 <div style="font-size: 4rem; color: #ccc;">🧴</div>
@@ -669,7 +720,16 @@ $products = $stmt->fetchAll();
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <div class="upload-controls">
+                                    <div class="upload-methods">
+                                        <div class="upload-method active" onclick="switchUploadMethod('file')" id="fileMethod">
+                                            📁 Upload File
+                                        </div>
+                                        <div class="upload-method" onclick="switchUploadMethod('url')" id="urlMethod">
+                                            🔗 Dari URL
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="upload-controls" id="fileControls">
                                         <input type="file" id="gambar" name="gambar" accept="image/*" style="display: none;">
                                         <button type="button" onclick="document.getElementById('gambar').click()" class="btn btn-sm">
                                             📷 Pilih Gambar
@@ -681,16 +741,24 @@ $products = $stmt->fetchAll();
                                         <?php endif; ?>
                                     </div>
                                     
+                                    <div class="url-input-container" id="urlControls">
+                                        <input type="url" class="url-input" id="imageUrl" placeholder="Masukkan URL gambar (https://...)">
+                                        <button type="button" onclick="loadImageFromUrl()" class="btn btn-sm">
+                                            🔗 Muat
+                                        </button>
+                                    </div>
+                                    
                                     <div class="upload-progress" id="uploadProgress" style="display: none;">
                                         <div class="progress-bar">
                                             <div class="progress-fill" id="progressFill"></div>
                                         </div>
-                                        <div class="progress-text" id="progressText">Uploading...</div>
+                                        <div class="progress-text" id="progressText">Processing...</div>
                                     </div>
                                 </div>
                                 
                                 <small style="color: #666; margin-top: 0.5rem; display: block;">
-                                    Format: JPG, PNG, GIF, WEBP. Maksimal 5MB. Gambar akan diresize otomatis.
+                                    Format: JPG, PNG, GIF, WEBP. Maksimal 5MB untuk file upload.
+                                    <br>Untuk URL: pastikan link mengarah langsung ke file gambar.
                                 </small>
                             </div>
                             
@@ -778,10 +846,18 @@ $products = $stmt->fetchAll();
                                             <td>
                                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                                     <div class="product-image">
-                                                        <?php if ($product['gambar'] && file_exists("../assets/images/products/" . $product['gambar'])): ?>
-                                                            <img src="../assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
-                                                                 alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
-                                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                                        <?php if ($product['gambar']): ?>
+                                                            <?php if (filter_var($product['gambar'], FILTER_VALIDATE_URL)): ?>
+                                                                <img src="<?= htmlspecialchars($product['gambar']) ?>" 
+                                                                     alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
+                                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                                            <?php elseif (file_exists("../assets/images/products/" . $product['gambar'])): ?>
+                                                                <img src="../assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
+                                                                     alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
+                                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                                            <?php else: ?>
+                                                                🧴
+                                                            <?php endif; ?>
                                                         <?php else: ?>
                                                             🧴
                                                         <?php endif; ?>
@@ -827,6 +903,20 @@ $products = $stmt->fetchAll();
     </div>
 
     <script>
+        let currentUploadMethod = 'file';
+        
+        function switchUploadMethod(method) {
+            currentUploadMethod = method;
+            
+            // Update UI
+            document.getElementById('fileMethod').classList.toggle('active', method === 'file');
+            document.getElementById('urlMethod').classList.toggle('active', method === 'url');
+            
+            document.getElementById('fileControls').style.display = method === 'file' ? 'flex' : 'none';
+            document.getElementById('urlControls').classList.toggle('active', method === 'url');
+        }
+        
+        // File upload handler
         document.getElementById('gambar').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -844,7 +934,12 @@ $products = $stmt->fetchAll();
                 return;
             }
             
+            uploadFile(file);
+        });
+        
+        function uploadFile(file) {
             document.getElementById('uploadProgress').style.display = 'block';
+            document.getElementById('progressText').textContent = 'Mengupload file...';
             
             const formData = new FormData();
             formData.append('gambar', file);
@@ -859,11 +954,7 @@ $products = $stmt->fetchAll();
                 
                 if (data.success) {
                     document.getElementById('gambar_filename').value = data.filename;
-                    document.getElementById('currentImage').innerHTML = `
-                        <img src="../assets/images/products/${data.filename}" 
-                             alt="Uploaded image" 
-                             style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
-                    `;
+                    updateImagePreview(`../assets/images/products/${data.filename}`);
                     alert('Gambar berhasil diupload!');
                 } else {
                     alert('Error: ' + data.message);
@@ -874,7 +965,65 @@ $products = $stmt->fetchAll();
                 alert('Terjadi kesalahan saat mengupload gambar');
                 console.error('Error:', error);
             });
-        });
+        }
+        
+        function loadImageFromUrl() {
+            const url = document.getElementById('imageUrl').value.trim();
+            
+            if (!url) {
+                alert('Silakan masukkan URL gambar');
+                return;
+            }
+            
+            if (!isValidImageUrl(url)) {
+                alert('URL tidak valid. Pastikan URL mengarah ke file gambar (jpg, png, gif, webp)');
+                return;
+            }
+            
+            document.getElementById('uploadProgress').style.display = 'block';
+            document.getElementById('progressText').textContent = 'Memuat gambar dari URL...';
+            
+            // Test if image can be loaded
+            const img = new Image();
+            img.onload = function() {
+                document.getElementById('uploadProgress').style.display = 'none';
+                document.getElementById('gambar_filename').value = url;
+                updateImagePreview(url);
+                document.getElementById('imageUrl').value = '';
+                alert('Gambar berhasil dimuat dari URL!');
+            };
+            
+            img.onerror = function() {
+                document.getElementById('uploadProgress').style.display = 'none';
+                alert('Gagal memuat gambar dari URL. Pastikan URL valid dan dapat diakses.');
+            };
+            
+            img.src = url;
+        }
+        
+        function isValidImageUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                const pathname = urlObj.pathname.toLowerCase();
+                const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+                
+                return validExtensions.some(ext => pathname.endsWith(ext)) || 
+                       url.includes('imgur.com') || 
+                       url.includes('cloudinary.com') ||
+                       url.includes('unsplash.com') ||
+                       url.includes('pexels.com');
+            } catch {
+                return false;
+            }
+        }
+        
+        function updateImagePreview(src) {
+            document.getElementById('currentImage').innerHTML = `
+                <img src="${src}" 
+                     alt="Product image" 
+                     style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
+            `;
+        }
         
         function removeImage() {
             if (confirm('Yakin ingin menghapus gambar?')) {
@@ -886,8 +1035,14 @@ $products = $stmt->fetchAll();
                     </div>
                 `;
                 document.getElementById('gambar').value = '';
+                document.getElementById('imageUrl').value = '';
             }
         }
+        
+        // Initialize upload method on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            switchUploadMethod('file');
+        });
     </script>
 </body>
 </html>
