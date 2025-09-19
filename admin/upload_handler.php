@@ -1,124 +1,113 @@
 <?php
-// admin/upload_handler.php
-require_once 'config/auth.php';
-requireAdmin();
-
+// upload_handler.php
 header('Content-Type: application/json');
 
-if (!isset($_FILES['gambar']) || $_FILES['gambar']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(['success' => false, 'message' => 'Tidak ada file yang diupload atau terjadi error']);
-    exit;
-}
+// ImgBB API Configuration
+define('IMGBB_API_KEY', '32ddacde5d921e494c118af76931ef76');
+define('IMGBB_API_URL', 'https://api.imgbb.com/1/upload');
 
-$file = $_FILES['gambar'];
-$upload_dir = '../assets/images/products/';
-
-// Create directory if not exists
-if (!is_dir($upload_dir)) {
-    mkdir($upload_dir, 0755, true);
-}
-
-// Validate file type
-$allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$mime_type = finfo_file($finfo, $file['tmp_name']);
-finfo_close($finfo);
-
-if (!in_array($mime_type, $allowed_types)) {
-    echo json_encode(['success' => false, 'message' => 'Tipe file tidak diizinkan. Hanya JPEG, PNG, GIF, WEBP yang diperbolehkan']);
-    exit;
-}
-
-// Validate file size (max 5MB)
-if ($file['size'] > 5 * 1024 * 1024) {
-    echo json_encode(['success' => false, 'message' => 'Ukuran file terlalu besar. Maksimal 5MB']);
-    exit;
-}
-
-// Generate unique filename
-$extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-$filename = 'product_' . time() . '_' . mt_rand(1000, 9999) . '.' . $extension;
-$filepath = $upload_dir . $filename;
-
-// Move uploaded file
-if (move_uploaded_file($file['tmp_name'], $filepath)) {
-    // Optional: Resize image if too large
-    resizeImage($filepath, 800, 800);
+function uploadToImgBB($imageData, $filename = null) {
+    $postData = [
+        'key' => IMGBB_API_KEY,
+        'image' => base64_encode($imageData),
+        'name' => $filename ? pathinfo($filename, PATHINFO_FILENAME) : 'product_' . time()
+    ];
     
-    echo json_encode([
-        'success' => true, 
-        'filename' => $filename,
-        'url' => 'assets/images/products/' . $filename,
-        'message' => 'Gambar berhasil diupload'
-    ]);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, IMGBB_API_URL);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        return ['success' => false, 'message' => 'Failed to connect to ImgBB API'];
+    }
+    
+    $result = json_decode($response, true);
+    
+    if (isset($result['success']) && $result['success']) {
+        return [
+            'success' => true,
+            'url' => $result['data']['url'],
+            'display_url' => $result['data']['display_url'],
+            'delete_url' => $result['data']['delete_url'] ?? null,
+            'thumb' => $result['data']['thumb']['url'] ?? null
+        ];
+    }
+    
+    return [
+        'success' => false, 
+        'message' => $result['error']['message'] ?? 'Unknown error'
+    ];
+}
+
+function validateImage($file) {
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $maxSize = 10 * 1024 * 1024; // 10MB (ImgBB limit is 32MB)
+    
+    if (!in_array($file['type'], $allowedTypes)) {
+        return ['valid' => false, 'message' => 'Tipe file tidak diizinkan. Hanya JPG, PNG, GIF, WEBP.'];
+    }
+    
+    if ($file['size'] > $maxSize) {
+        return ['valid' => false, 'message' => 'Ukuran file terlalu besar. Maksimal 10MB.'];
+    }
+    
+    return ['valid' => true];
+}
+
+// Handle upload request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        if (!isset($_FILES['gambar']) || $_FILES['gambar']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('No file uploaded or upload error');
+        }
+        
+        $file = $_FILES['gambar'];
+        
+        // Validate file
+        $validation = validateImage($file);
+        if (!$validation['valid']) {
+            echo json_encode(['success' => false, 'message' => $validation['message']]);
+            exit;
+        }
+        
+        // Read file data
+        $imageData = file_get_contents($file['tmp_name']);
+        if ($imageData === false) {
+            throw new Exception('Failed to read uploaded file');
+        }
+        
+        // Upload to ImgBB
+        $result = uploadToImgBB($imageData, $file['name']);
+        
+        if ($result['success']) {
+            echo json_encode([
+                'success' => true,
+                'url' => $result['url'],
+                'display_url' => $result['display_url'],
+                'thumb' => $result['thumb'],
+                'message' => 'Gambar berhasil diupload ke ImgBB'
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Upload failed: ' . $result['message']
+            ]);
+        }
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ]);
+    }
 } else {
-    echo json_encode(['success' => false, 'message' => 'Gagal mengupload file']);
-}
-
-function resizeImage($filepath, $max_width, $max_height) {
-    $image_info = getimagesize($filepath);
-    if (!$image_info) return false;
-    
-    list($orig_width, $orig_height, $image_type) = $image_info;
-    
-    // Skip if image is already small enough
-    if ($orig_width <= $max_width && $orig_height <= $max_height) {
-        return true;
-    }
-    
-    // Calculate new dimensions
-    $ratio = min($max_width / $orig_width, $max_height / $orig_height);
-    $new_width = round($orig_width * $ratio);
-    $new_height = round($orig_height * $ratio);
-    
-    // Create new image resource
-    switch ($image_type) {
-        case IMAGETYPE_JPEG:
-            $source = imagecreatefromjpeg($filepath);
-            break;
-        case IMAGETYPE_PNG:
-            $source = imagecreatefrompng($filepath);
-            break;
-        case IMAGETYPE_GIF:
-            $source = imagecreatefromgif($filepath);
-            break;
-        default:
-            return false;
-    }
-    
-    if (!$source) return false;
-    
-    // Create new image
-    $destination = imagecreatetruecolor($new_width, $new_height);
-    
-    // Handle transparency for PNG and GIF
-    if ($image_type == IMAGETYPE_PNG || $image_type == IMAGETYPE_GIF) {
-        imagealphablending($destination, false);
-        imagesavealpha($destination, true);
-        $transparent = imagecolorallocatealpha($destination, 255, 255, 255, 127);
-        imagefilledrectangle($destination, 0, 0, $new_width, $new_height, $transparent);
-    }
-    
-    // Resize image
-    imagecopyresampled($destination, $source, 0, 0, 0, 0, $new_width, $new_height, $orig_width, $orig_height);
-    
-    // Save resized image
-    switch ($image_type) {
-        case IMAGETYPE_JPEG:
-            imagejpeg($destination, $filepath, 85);
-            break;
-        case IMAGETYPE_PNG:
-            imagepng($destination, $filepath, 8);
-            break;
-        case IMAGETYPE_GIF:
-            imagegif($destination, $filepath);
-            break;
-    }
-    
-    // Clean up
-    imagedestroy($source);
-    imagedestroy($destination);
-    
-    return true;
+    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
 }
 ?>

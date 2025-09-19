@@ -699,17 +699,14 @@ $products = $stmt->fetchAll();
                                 
                                 <div class="image-upload-container">
                                     <div class="current-image" id="currentImage">
-                                        <?php if (!empty($product['gambar'])): ?>
+                                    <?php if (!empty($product['gambar'])): ?>
                                             <?php if (filter_var($product['gambar'], FILTER_VALIDATE_URL)): ?>
                                                 <img src="<?= htmlspecialchars($product['gambar']) ?>" 
-                                                     alt="Current image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
-                                            <?php elseif (file_exists("../assets/images/products/" . $product['gambar'])): ?>
-                                                <img src="../assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
                                                      alt="Current image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
                                             <?php else: ?>
                                                 <div class="no-image">
                                                     <div style="font-size: 4rem; color: #ccc;">🧴</div>
-                                                    <p>Belum ada gambar</p>
+                                                    <p>Gambar tidak valid</p>
                                                 </div>
                                             <?php endif; ?>
                                         <?php else: ?>
@@ -850,11 +847,8 @@ $products = $stmt->fetchAll();
                                                             <?php if (filter_var($product['gambar'], FILTER_VALIDATE_URL)): ?>
                                                                 <img src="<?= htmlspecialchars($product['gambar']) ?>" 
                                                                      alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
-                                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
-                                                            <?php elseif (file_exists("../assets/images/products/" . $product['gambar'])): ?>
-                                                                <img src="../assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
-                                                                     alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
-                                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;"
+                                                                     onerror="this.parentElement.innerHTML='🧴';">
                                                             <?php else: ?>
                                                                 🧴
                                                             <?php endif; ?>
@@ -939,7 +933,7 @@ $products = $stmt->fetchAll();
         
         function uploadFile(file) {
             document.getElementById('uploadProgress').style.display = 'block';
-            document.getElementById('progressText').textContent = 'Mengupload file...';
+            document.getElementById('progressText').textContent = 'Mengupload ke ImgBB...';
             
             const formData = new FormData();
             formData.append('gambar', file);
@@ -953,16 +947,25 @@ $products = $stmt->fetchAll();
                 document.getElementById('uploadProgress').style.display = 'none';
                 
                 if (data.success) {
-                    document.getElementById('gambar_filename').value = data.filename;
-                    updateImagePreview(`../assets/images/products/${data.filename}`);
-                    alert('Gambar berhasil diupload!');
+                    // Simpan URL ImgBB langsung ke database
+                    document.getElementById('gambar_filename').value = data.url;
+                    updateImagePreview(data.url);
+                    
+                    alert('✅ Gambar berhasil diupload ke ImgBB!\n🔗 URL: ' + data.url);
+                    
+                    // Show additional info
+                    console.log('ImgBB Response:', {
+                        url: data.url,
+                        display_url: data.display_url,
+                        thumb: data.thumb
+                    });
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('❌ Error: ' + data.message);
                 }
             })
             .catch(error => {
                 document.getElementById('uploadProgress').style.display = 'none';
-                alert('Terjadi kesalahan saat mengupload gambar');
+                alert('❌ Terjadi kesalahan saat mengupload gambar');
                 console.error('Error:', error);
             });
         }
@@ -981,21 +984,24 @@ $products = $stmt->fetchAll();
             }
             
             document.getElementById('uploadProgress').style.display = 'block';
-            document.getElementById('progressText').textContent = 'Memuat gambar dari URL...';
+            document.getElementById('progressText').textContent = 'Memvalidasi URL gambar...';
             
             // Test if image can be loaded
             const img = new Image();
             img.onload = function() {
                 document.getElementById('uploadProgress').style.display = 'none';
+                
+                // Langsung simpan URL ke database
                 document.getElementById('gambar_filename').value = url;
                 updateImagePreview(url);
                 document.getElementById('imageUrl').value = '';
-                alert('Gambar berhasil dimuat dari URL!');
+                
+                alert('✅ Gambar berhasil dimuat dari URL!\n🔗 Disimpan langsung ke database');
             };
             
             img.onerror = function() {
                 document.getElementById('uploadProgress').style.display = 'none';
-                alert('Gagal memuat gambar dari URL. Pastikan URL valid dan dapat diakses.');
+                alert('❌ Gagal memuat gambar dari URL. Pastikan URL valid dan dapat diakses.');
             };
             
             img.src = url;
