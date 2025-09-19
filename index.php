@@ -367,13 +367,22 @@ $cart_count = $cart_result['total'] ?? 0;
                 <?php foreach ($products as $product): ?>
                     <div class="product-card">
                         <div class="product-image">
-                            <?php if ($product['gambar'] && file_exists("assets/images/products/" . $product['gambar'])): ?>
-                                <img src="assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
-                                     alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
-                                     style="width: 100%; height: 100%; object-fit: cover;">
-                            <?php else: ?>
-                                🧴
-                            <?php endif; ?>
+                            <?php if ($product['gambar']): ?>
+    <?php if (filter_var($product['gambar'], FILTER_VALIDATE_URL)): ?>
+        <img src="<?= htmlspecialchars($product['gambar']) ?>" 
+             alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
+             style="width: 100%; height: 100%; object-fit: cover;"
+             onerror="this.parentElement.innerHTML='🧴';">
+    <?php else: ?>
+        <!-- Fallback untuk file lokal jika ada -->
+        <img src="assets/images/products/<?= htmlspecialchars($product['gambar']) ?>" 
+             alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
+             style="width: 100%; height: 100%; object-fit: cover;"
+             onerror="this.parentElement.innerHTML='🧴';">
+    <?php endif; ?>
+<?php else: ?>
+    🧴
+<?php endif; ?>
                         </div>
                         <div class="product-info">
                             <div class="product-brand"><?= htmlspecialchars($product['brand']) ?></div>
