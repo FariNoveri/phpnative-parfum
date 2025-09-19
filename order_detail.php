@@ -248,6 +248,7 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             display: inline-block;
             margin: 0 0.5rem;
             transition: all 0.3s;
+            cursor: pointer;
         }
         
         .btn:hover {
@@ -261,6 +262,14 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
         
         .btn-whatsapp:hover {
             background: #20b954;
+        }
+        
+        .btn-print {
+            background: #f39c12;
+        }
+        
+        .btn-print:hover {
+            background: #e67e22;
         }
         
         .status-timeline {
@@ -319,6 +328,199 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             font-weight: bold;
         }
         
+        .print-header {
+            display: none;
+            text-align: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #333;
+        }
+        
+        .print-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .print-header p {
+            color: #666;
+            margin: 0.125rem 0;
+            font-size: 0.9rem;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                background-color: white !important;
+                color: #000 !important;
+                font-size: 10pt !important;
+                line-height: 1.2 !important;
+                margin: 0.25in !important;
+                padding: 0 !important;
+            }
+            
+            .container {
+                max-width: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            .header {
+                display: none !important;
+            }
+            
+            .print-header {
+                display: block !important;
+            }
+            
+            .order-card {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                page-break-inside: avoid !important;
+                border: none !important;
+            }
+            
+            .order-header {
+                background: #f8f9fa !important;
+                color: #000 !important;
+                border: 1px solid #333 !important;
+                padding: 0.5rem !important;
+                margin-bottom: 0.5rem !important;
+                page-break-after: avoid !important;
+            }
+            
+            .order-id {
+                font-size: 1.2rem !important;
+            }
+            
+            .order-date {
+                font-size: 0.9rem !important;
+            }
+            
+            .order-status {
+                background: #e9ecef !important;
+                color: #000 !important;
+                border: 1px solid #333 !important;
+                padding: 0.25rem 0.75rem !important;
+                font-size: 0.9rem !important;
+            }
+            
+            .order-details {
+                padding: 0.5rem !important;
+            }
+            
+            .detail-section {
+                margin-bottom: 1rem !important;
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+            }
+            
+            .detail-section h3 {
+                border-bottom: 1px solid #333 !important;
+                color: #000 !important;
+                font-size: 1rem !important;
+                margin-bottom: 0.75rem !important;
+                padding-bottom: 0.25rem !important;
+            }
+            
+            .customer-info {
+                grid-template-columns: 1fr !important;
+                gap: 0.5rem !important;
+            }
+            
+            .info-item {
+                margin-bottom: 0.5rem !important;
+            }
+            
+            .info-label {
+                font-size: 0.9rem !important;
+            }
+            
+            .info-value {
+                font-size: 0.9rem !important;
+            }
+            
+            .order-item {
+                display: flex !important;
+                align-items: flex-start !important;
+                padding: 0.75rem 0 !important;
+                border-bottom: 1px solid #eee !important;
+                page-break-inside: avoid !important;
+                page-break-after: auto !important;
+                font-size: 0.9rem !important;
+            }
+            
+            .product-image {
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 1rem !important;
+                margin-right: 0.75rem !important;
+                flex-shrink: 0 !important;
+            }
+            
+            .item-info {
+                flex: 1 !important;
+            }
+            
+            .item-name {
+                font-size: 1rem !important;
+                margin-bottom: 0.125rem !important;
+            }
+            
+            .item-brand {
+                font-size: 0.8rem !important;
+            }
+            
+            .item-quantity {
+                margin: 0 0.5rem !important;
+                font-size: 1rem !important;
+                flex-shrink: 0 !important;
+            }
+            
+            .item-price {
+                font-size: 1rem !important;
+                flex-shrink: 0 !important;
+                white-space: nowrap !important;
+            }
+            
+            .total-section {
+                margin-top: 1rem !important;
+                padding-top: 1rem !important;
+                border-top: 1px solid #333 !important;
+                page-break-before: avoid !important;
+            }
+            
+            .total-row {
+                font-size: 1rem !important;
+                margin-bottom: 0.25rem !important;
+                justify-content: space-between !important;
+            }
+            
+            .total-final {
+                font-size: 1.2rem !important;
+                padding-top: 0.5rem !important;
+                border-top: 1px solid #333 !important;
+            }
+            
+            .action-buttons {
+                display: none !important;
+            }
+            
+            .back-link {
+                display: none !important;
+            }
+            
+            .status-timeline {
+                display: none !important;
+            }
+            
+            /* Ensure single page */
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -358,11 +560,24 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             .status-timeline::before {
                 display: none;
             }
+            
+            .btn {
+                display: block;
+                margin: 0.5rem 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Print Header (hanya muncul saat print) -->
+        <div class="print-header">
+            <h1>TOKO PARFUM PREMIUM</h1>
+            <p>Jl. Contoh No. 123, Kota ABC</p>
+            <p>Telp: (021) 12345678 | Email: info@tokoperfume.com</p>
+            <p>Website: www.tokoperfume.com</p>
+        </div>
+        
         <div class="header">
             <a href="orders.php" class="back-link">← Kembali ke Daftar Pesanan</a>
             <h1>Detail Pesanan</h1>
@@ -469,6 +684,9 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
         </div>
 
         <div class="action-buttons">
+            <button onclick="window.print()" class="btn btn-print">
+                🖨️ Print Pesanan
+            </button>
             <?php if ($order['status'] == 'pending'): ?>
                 <a href="<?= $wa_link ?>" target="_blank" class="btn btn-whatsapp">
                     📱 Konfirmasi Pembayaran
@@ -481,5 +699,30 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             <a href="orders.php" class="btn">Kembali ke Daftar Pesanan</a>
         </div>
     </div>
+
+    <script>
+        // Print function with better formatting
+        function printOrder() {
+            // Optional: Add print timestamp
+            const printTime = new Date().toLocaleString('id-ID');
+            const originalTitle = document.title;
+            document.title = `Pesanan #<?= $order['id'] ?> - Dicetak ${printTime}`;
+            
+            window.print();
+            
+            // Restore original title after print
+            setTimeout(() => {
+                document.title = originalTitle;
+            }, 1000);
+        }
+        
+        // Add keyboard shortcut for printing (Ctrl+P)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                printOrder();
+            }
+        });
+    </script>
 </body>
 </html>
