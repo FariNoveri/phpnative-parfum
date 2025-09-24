@@ -13,6 +13,23 @@ $recent_orders = $stmt->fetchAll();
 $stmt = $pdo->prepare("SELECT * FROM products WHERE stok <= 5 ORDER BY stok ASC LIMIT 5");
 $stmt->execute();
 $low_stock = $stmt->fetchAll();
+
+// Get sales data by category for chart
+$stmt = $pdo->prepare("SELECT kategori, COUNT(*) as count FROM products GROUP BY kategori");
+$stmt->execute();
+$category_sales = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+// Get order trend (last 7 days)
+$order_trend = [];
+$today = new DateTime();
+for ($i = 6; $i >= 0; $i--) {
+    $date = clone $today;
+    $date->modify("-$i days");
+    $date_str = $date->format('Y-m-d');
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = ?");
+    $stmt->execute([$date_str]);
+    $order_trend[$date_str] = $stmt->fetchColumn();
+}
 ?>
 
 <!DOCTYPE html>
@@ -208,6 +225,12 @@ $low_stock = $stmt->fetchAll();
             padding: 2rem;
         }
         
+        .chart-container {
+            height: 300px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
         .order-item {
             display: flex;
             justify-content: space-between;
@@ -341,8 +364,13 @@ $low_stock = $stmt->fetchAll();
             .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             }
+            
+            .chart-container {
+                height: 200px;
+            }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="admin-container">
@@ -454,6 +482,19 @@ $low_stock = $stmt->fetchAll();
 
             <!-- Content Grid -->
             <div class="content-grid">
+                <!-- Charts -->
+                <div class="section-card">
+                    <div class="section-header">📊 Statistik Penjualan</div>
+                    <div class="section-content">
+                        <div class="chart-container">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="orderTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Recent Orders -->
                 <div class="section-card">
                     <div class="section-header">📦 Pesanan Terbaru</div>
@@ -534,5 +575,60 @@ $low_stock = $stmt->fetchAll();
             </div>
         </main>
     </div>
+
+    <script>
+        // Chart.js for Category Sales
+        const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+        new Chart(ctxCategory, {
+            type: 'pie',
+            data: {
+                labels: ['Pria', 'Wanita', 'Unisex'],
+                datasets: [{
+                    data: [
+                        <?= $category_sales['pria'] ?? 0 ?>,
+                        <?= $category_sales['wanita'] ?? 0 ?>,
+                        <?= $category_sales['unisex'] ?? 0 ?>
+                    ],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Distribusi Produk per Kategori' }
+                }
+            }
+        });
+
+        // Chart.js for Order Trend
+        const ctxOrderTrend = document.getElementById('orderTrendChart').getContext('2d');
+        new Chart(ctxOrderTrend, {
+            type: 'line',
+            data: {
+                labels: <?= json_encode(array_keys($order_trend)) ?>,
+                datasets: [{
+                    label: 'Jumlah Pesanan',
+                    data: <?= json_encode(array_values($order_trend)) ?>,
+                    borderColor: '#36A2EB',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Tren Pesanan (7 Hari Terakhir)' }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
 </body>
 </html>

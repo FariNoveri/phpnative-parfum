@@ -10,14 +10,24 @@ if ($_POST) {
     $nama_parfum = trim($_POST['nama_parfum']);
     $brand = trim($_POST['brand']);
     $harga = (float)$_POST['harga'];
+    $original_price = (float)($_POST['original_price'] ?? $harga);
+    $discount_percentage = (int)($_POST['discount_percentage'] ?? 0);
     $stok = (int)$_POST['stok'];
     $deskripsi = trim($_POST['deskripsi']);
     $kategori = $_POST['kategori'];
+    $volume_ml = (int)$_POST['volume_ml'];
+    $scent_notes = trim($_POST['scent_notes']);
+    $longevity_hours = (int)$_POST['longevity_hours'];
+    $sillage = trim($_POST['sillage']);
+    $season = trim($_POST['season']);
+    $occasion = trim($_POST['occasion']);
+    $tags = trim($_POST['tags']);
+    $is_refill = (int)$_POST['is_refill'];
     $gambar = $_POST['gambar_filename'] ?? '';
-    
+
     if ($action === 'add') {
-        $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, brand, harga, stok, deskripsi, kategori, gambar) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        if ($stmt->execute([$nama_parfum, $brand, $harga, $stok, $deskripsi, $kategori, $gambar])) {
+        $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, brand, harga, original_price, discount_percentage, stok, deskripsi, kategori, volume_ml, scent_notes, longevity_hours, sillage, season, occasion, tags, is_refill, gambar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $volume_ml, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $gambar])) {
             logAdminActivity('ADD_PRODUCT', "Menambah produk: $nama_parfum");
             $_SESSION['message'] = 'Produk berhasil ditambahkan';
             $_SESSION['message_type'] = 'success';
@@ -27,10 +37,10 @@ if ($_POST) {
         }
         redirect('products.php');
     }
-    
+
     if ($action === 'edit' && $product_id > 0) {
-        $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, brand = ?, harga = ?, stok = ?, deskripsi = ?, kategori = ?, gambar = ? WHERE id = ?");
-        if ($stmt->execute([$nama_parfum, $brand, $harga, $stok, $deskripsi, $kategori, $gambar, $product_id])) {
+        $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, brand = ?, harga = ?, original_price = ?, discount_percentage = ?, stok = ?, deskripsi = ?, kategori = ?, volume_ml = ?, scent_notes = ?, longevity_hours = ?, sillage = ?, season = ?, occasion = ?, tags = ?, is_refill = ?, gambar = ? WHERE id = ?");
+        if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $volume_ml, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $gambar, $product_id])) {
             logAdminActivity('EDIT_PRODUCT', "Mengedit produk: $nama_parfum (ID: $product_id)");
             $_SESSION['message'] = 'Produk berhasil diupdate';
             $_SESSION['message_type'] = 'success';
@@ -47,7 +57,7 @@ if ($action === 'delete' && $product_id > 0) {
     $stmt = $pdo->prepare("SELECT nama_parfum FROM products WHERE id = ?");
     $stmt->execute([$product_id]);
     $product_name = $stmt->fetch()['nama_parfum'] ?? '';
-    
+
     $stmt = $pdo->prepare("DELETE FROM products WHERE id = ?");
     if ($stmt->execute([$product_id])) {
         logAdminActivity('DELETE_PRODUCT', "Menghapus produk: $product_name (ID: $product_id)");
@@ -66,7 +76,7 @@ if ($action === 'edit' && $product_id > 0) {
     $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ?");
     $stmt->execute([$product_id]);
     $product = $stmt->fetch();
-    
+
     if (!$product) {
         redirect('products.php');
     }
@@ -442,51 +452,6 @@ $products = $stmt->fetchAll();
             border-color: #f5c6cb;
         }
         
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-        
-        .modal-content {
-            background: white;
-            margin: 5% auto;
-            padding: 2rem;
-            border-radius: 15px;
-            max-width: 500px;
-            text-align: center;
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            
-            .main-content {
-                margin-left: 0;
-                padding: 1rem;
-            }
-            
-            .top-bar {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: stretch;
-            }
-            
-            .filter-form {
-                flex-direction: column;
-            }
-            
-            .table-container {
-                padding: 1rem;
-            }
-        }
-        
         .image-upload-container {
             border: 2px dashed #e1e1e1;
             border-radius: 8px;
@@ -575,6 +540,30 @@ $products = $stmt->fetchAll();
             font-size: 0.9rem;
             color: #666;
         }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+            .top-bar {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+            .filter-form {
+                flex-direction: column;
+            }
+            .table-container {
+                padding: 1rem;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -586,45 +575,39 @@ $products = $stmt->fetchAll();
             </div>
             
             <nav>
-    <ul class="nav-menu">
-        <li class="nav-item">
-            <a href="dashboard.php" class="nav-link">
-                <span class="nav-icon">📊</span>
-                Dashboard
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="products.php" class="nav-link">
-                <span class="nav-icon">🧴</span>
-                Kelola Produk
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="orders.php" class="nav-link">
-                <span class="nav-icon">📦</span>
-                Kelola Pesanan
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="users.php" class="nav-link">
-                <span class="nav-icon">👥</span>
-                Kelola User
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="reports.php" class="nav-link">
-                <span class="nav-icon">📈</span>
-                Laporan
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="../index.php" class="nav-link" target="_blank">
-                <span class="nav-icon">🌐</span>
-                Lihat Website
-            </a>
-        </li>
-    </ul>
-</nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.php" class="nav-link">
+                            <span class="nav-icon">📊</span> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="products.php" class="nav-link active">
+                            <span class="nav-icon">🧴</span> Kelola Produk
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="orders.php" class="nav-link">
+                            <span class="nav-icon">📦</span> Kelola Pesanan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="users.php" class="nav-link">
+                            <span class="nav-icon">👥</span> Kelola User
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.php" class="nav-link">
+                            <span class="nav-icon">📈</span> Laporan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="../index.php" class="nav-link" target="_blank">
+                            <span class="nav-icon">🌐</span> Lihat Website
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         </aside>
 
         <main class="main-content">
@@ -668,27 +651,42 @@ $products = $stmt->fetchAll();
                                     <input type="text" id="nama_parfum" name="nama_parfum" required
                                            value="<?= htmlspecialchars($product['nama_parfum'] ?? '') ?>">
                                 </div>
-                                
                                 <div class="form-group">
                                     <label for="brand">Brand *</label>
                                     <input type="text" id="brand" name="brand" required
                                            value="<?= htmlspecialchars($product['brand'] ?? '') ?>">
                                 </div>
                             </div>
-                            
+
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="harga">Harga *</label>
+                                    <label for="harga">Harga (Rp) *</label>
                                     <input type="number" id="harga" name="harga" required min="0" step="0.01"
                                            value="<?= $product['harga'] ?? '' ?>">
                                 </div>
-                                
+                                <div class="form-group">
+                                    <label for="original_price">Harga Asli (Rp)</label>
+                                    <input type="number" id="original_price" name="original_price" min="0" step="0.01"
+                                           value="<?= $product['original_price'] ?? $product['harga'] ?? '' ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="discount_percentage">Diskon (%)</label>
+                                    <input type="number" id="discount_percentage" name="discount_percentage" min="0" max="100"
+                                           value="<?= $product['discount_percentage'] ?? 0 ?>">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="stok">Stok *</label>
                                     <input type="number" id="stok" name="stok" required min="0"
                                            value="<?= $product['stok'] ?? '' ?>">
                                 </div>
-                                
+                                <div class="form-group">
+                                    <label for="volume_ml">Volume (ml) *</label>
+                                    <input type="number" id="volume_ml" name="volume_ml" required min="1"
+                                           value="<?= $product['volume_ml'] ?? 100 ?>">
+                                </div>
                                 <div class="form-group">
                                     <label for="kategori">Kategori *</label>
                                     <select id="kategori" name="kategori" required>
@@ -699,19 +697,70 @@ $products = $stmt->fetchAll();
                                     </select>
                                 </div>
                             </div>
-                            
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="scent_notes">Scent Notes</label>
+                                    <input type="text" id="scent_notes" name="scent_notes"
+                                           value="<?= htmlspecialchars($product['scent_notes'] ?? '') ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="longevity_hours">Longevity (Jam)</label>
+                                    <input type="number" id="longevity_hours" name="longevity_hours" min="0"
+                                           value="<?= $product['longevity_hours'] ?? 0 ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="sillage">Sillage</label>
+                                    <select id="sillage" name="sillage">
+                                        <option value="">Pilih Sillage</option>
+                                        <option value="intimate" <?= ($product['sillage'] ?? '') === 'intimate' ? 'selected' : '' ?>>Intimate</option>
+                                        <option value="moderate" <?= ($product['sillage'] ?? '') === 'moderate' ? 'selected' : '' ?>>Moderate</option>
+                                        <option value="strong" <?= ($product['sillage'] ?? '') === 'strong' ? 'selected' : '' ?>>Strong</option>
+                                        <option value="enormous" <?= ($product['sillage'] ?? '') === 'enormous' ? 'selected' : '' ?>>Enormous</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="season">Season (Pisahkan dengan koma)</label>
+                                    <input type="text" id="season" name="season"
+                                           value="<?= htmlspecialchars($product['season'] ?? 'spring,summer,fall,winter') ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="occasion">Occasion (Pisahkan dengan koma)</label>
+                                    <input type="text" id="occasion" name="occasion"
+                                           value="<?= htmlspecialchars($product['occasion'] ?? 'casual,office') ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label for="tags">Tags (Pisahkan dengan koma)</label>
+                                    <input type="text" id="tags" name="tags"
+                                           value="<?= htmlspecialchars($product['tags'] ?? '') ?>">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="is_refill">Refill?</label>
+                                    <select id="is_refill" name="is_refill">
+                                        <option value="1" <?= ($product['is_refill'] ?? 1) == 1 ? 'selected' : '' ?>>Ya</option>
+                                        <option value="0" <?= ($product['is_refill'] ?? 1) == 0 ? 'selected' : '' ?>>Tidak</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="deskripsi">Deskripsi</label>
                                 <textarea id="deskripsi" name="deskripsi"><?= htmlspecialchars($product['deskripsi'] ?? '') ?></textarea>
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="gambar">Gambar Produk</label>
                                 <input type="hidden" name="gambar_filename" id="gambar_filename" value="<?= htmlspecialchars($product['gambar'] ?? '') ?>">
                                 
                                 <div class="image-upload-container">
                                     <div class="current-image" id="currentImage">
-                                    <?php if (!empty($product['gambar'])): ?>
+                                        <?php if (!empty($product['gambar'])): ?>
                                             <?php if (filter_var($product['gambar'], FILTER_VALIDATE_URL)): ?>
                                                 <img src="<?= htmlspecialchars($product['gambar']) ?>" 
                                                      alt="Current image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
@@ -751,7 +800,7 @@ $products = $stmt->fetchAll();
                                     </div>
                                     
                                     <div class="url-input-container" id="urlControls">
-                                        <input type="url" class="url-input" id="imageUrl" placeholder="Masukkan URL gambar (https://...)">
+                                        <input type="url" class="url-input" id="imageUrl" placeholder="Masukkan URL gambar[](https://...)">
                                         <button type="button" onclick="loadImageFromUrl()" class="btn btn-sm">
                                             🔗 Muat
                                         </button>
@@ -795,7 +844,6 @@ $products = $stmt->fetchAll();
                                 <input type="text" name="search" placeholder="Nama atau brand..."
                                        value="<?= htmlspecialchars($search) ?>">
                             </div>
-                            
                             <div class="form-group">
                                 <label>Kategori</label>
                                 <select name="kategori">
@@ -805,7 +853,6 @@ $products = $stmt->fetchAll();
                                     <option value="unisex" <?= $kategori_filter === 'unisex' ? 'selected' : '' ?>>Unisex</option>
                                 </select>
                             </div>
-                            
                             <div class="form-group">
                                 <label>Urutkan</label>
                                 <select name="sort">
@@ -816,12 +863,10 @@ $products = $stmt->fetchAll();
                                     <option value="stok ASC" <?= $sort === 'stok ASC' ? 'selected' : '' ?>>Stok Terendah</option>
                                 </select>
                             </div>
-                            
                             <div class="form-group">
                                 <label>&nbsp;</label>
                                 <button type="submit" class="btn">🔍 Cari</button>
                             </div>
-                            
                             <div class="form-group">
                                 <label>&nbsp;</label>
                                 <a href="products.php" class="btn btn-warning">🔄 Reset</a>
@@ -843,6 +888,7 @@ $products = $stmt->fetchAll();
                                     <tr>
                                         <th>Produk</th>
                                         <th>Harga</th>
+                                        <th>Diskon</th>
                                         <th>Stok</th>
                                         <th>Kategori</th>
                                         <th>Tanggal</th>
@@ -870,12 +916,20 @@ $products = $stmt->fetchAll();
                                                     </div>
                                                     <div>
                                                         <div class="product-name"><?= htmlspecialchars($product['nama_parfum']) ?></div>
-                                                        <div class="product-brand"><?= htmlspecialchars($product['brand']) ?></div>
+                                                        <div class="product-brand"><?= htmlspecialchars($product['brand']) ?> • <?= $product['volume_ml'] ?>ml</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
                                                 <strong><?= formatRupiah($product['harga']) ?></strong>
+                                                <?php if ($product['discount_percentage'] > 0): ?>
+                                                    <span style="color: #999; text-decoration: line-through; margin-left: 0.5rem;">
+                                                        <?= formatRupiah($product['original_price'] ?? $product['harga']) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?= $product['discount_percentage'] ?>%
                                             </td>
                                             <td>
                                                 <span class="stock-badge <?= $product['stok'] <= 5 ? 'stock-low' : ($product['stok'] <= 15 ? 'stock-medium' : 'stock-high') ?>">
@@ -886,10 +940,8 @@ $products = $stmt->fetchAll();
                                             <td><?= date('d/m/Y', strtotime($product['created_at'])) ?></td>
                                             <td>
                                                 <div class="actions">
-                                                    <a href="products.php?action=edit&id=<?= $product['id'] ?>" 
-                                                       class="btn btn-sm">✏️ Edit</a>
-                                                    <a href="products.php?action=delete&id=<?= $product['id'] ?>" 
-                                                       class="btn btn-sm btn-danger"
+                                                    <a href="products.php?action=edit&id=<?= $product['id'] ?>" class="btn btn-sm">✏️ Edit</a>
+                                                    <a href="products.php?action=delete&id=<?= $product['id'] ?>" class="btn btn-sm btn-danger"
                                                        onclick="return confirm('Yakin ingin menghapus produk ini?')">🗑️ Hapus</a>
                                                 </div>
                                             </td>
@@ -897,7 +949,6 @@ $products = $stmt->fetchAll();
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
-                            
                             <div style="margin-top: 2rem; text-align: center; color: #666;">
                                 Total: <?= count($products) ?> produk
                             </div>
@@ -910,46 +961,42 @@ $products = $stmt->fetchAll();
 
     <script>
         let currentUploadMethod = 'file';
-        
+
         function switchUploadMethod(method) {
             currentUploadMethod = method;
-            
-            // Update UI
             document.getElementById('fileMethod').classList.toggle('active', method === 'file');
             document.getElementById('urlMethod').classList.toggle('active', method === 'url');
-            
             document.getElementById('fileControls').style.display = method === 'file' ? 'flex' : 'none';
             document.getElementById('urlControls').classList.toggle('active', method === 'url');
         }
-        
-        // File upload handler
+
         document.getElementById('gambar').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
                 alert('Tipe file tidak diizinkan. Hanya JPG, PNG, GIF, WEBP yang diperbolehkan.');
                 this.value = '';
                 return;
             }
-            
+
             if (file.size > 5 * 1024 * 1024) {
                 alert('Ukuran file terlalu besar. Maksimal 5MB.');
                 this.value = '';
                 return;
             }
-            
+
             uploadFile(file);
         });
-        
+
         function uploadFile(file) {
             document.getElementById('uploadProgress').style.display = 'block';
             document.getElementById('progressText').textContent = 'Mengupload ke ImgBB...';
-            
+
             const formData = new FormData();
             formData.append('gambar', file);
-            
+
             fetch('upload_handler.php', {
                 method: 'POST',
                 body: formData
@@ -957,20 +1004,11 @@ $products = $stmt->fetchAll();
             .then(response => response.json())
             .then(data => {
                 document.getElementById('uploadProgress').style.display = 'none';
-                
+
                 if (data.success) {
-                    // Simpan URL ImgBB langsung ke database
                     document.getElementById('gambar_filename').value = data.url;
                     updateImagePreview(data.url);
-                    
                     alert('✅ Gambar berhasil diupload ke ImgBB!\n🔗 URL: ' + data.url);
-                    
-                    // Show additional info
-                    console.log('ImgBB Response:', {
-                        url: data.url,
-                        display_url: data.display_url,
-                        thumb: data.thumb
-                    });
                 } else {
                     alert('❌ Error: ' + data.message);
                 }
@@ -981,68 +1019,58 @@ $products = $stmt->fetchAll();
                 console.error('Error:', error);
             });
         }
-        
+
         function loadImageFromUrl() {
             const url = document.getElementById('imageUrl').value.trim();
-            
+
             if (!url) {
                 alert('Silakan masukkan URL gambar');
                 return;
             }
-            
+
             if (!isValidImageUrl(url)) {
                 alert('URL tidak valid. Pastikan URL mengarah ke file gambar (jpg, png, gif, webp)');
                 return;
             }
-            
+
             document.getElementById('uploadProgress').style.display = 'block';
             document.getElementById('progressText').textContent = 'Memvalidasi URL gambar...';
-            
-            // Test if image can be loaded
+
             const img = new Image();
             img.onload = function() {
                 document.getElementById('uploadProgress').style.display = 'none';
-                
-                // Langsung simpan URL ke database
                 document.getElementById('gambar_filename').value = url;
                 updateImagePreview(url);
                 document.getElementById('imageUrl').value = '';
-                
-                alert('✅ Gambar berhasil dimuat dari URL!\n🔗 Disimpan langsung ke database');
+                alert('✅ Gambar berhasil dimuat dari URL!');
             };
-            
+
             img.onerror = function() {
                 document.getElementById('uploadProgress').style.display = 'none';
                 alert('❌ Gagal memuat gambar dari URL. Pastikan URL valid dan dapat diakses.');
             };
-            
+
             img.src = url;
         }
-        
+
         function isValidImageUrl(url) {
             try {
                 const urlObj = new URL(url);
                 const pathname = urlObj.pathname.toLowerCase();
                 const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-                
                 return validExtensions.some(ext => pathname.endsWith(ext)) || 
-                       url.includes('imgur.com') || 
-                       url.includes('cloudinary.com') ||
-                       url.includes('unsplash.com') ||
-                       url.includes('pexels.com');
+                       url.includes('imgur.com') || url.includes('cloudinary.com');
             } catch {
                 return false;
             }
         }
-        
+
         function updateImagePreview(src) {
             document.getElementById('currentImage').innerHTML = `
-                <img src="${src}" 
-                     alt="Product image" 
-                     style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
+                <img src="${src}" alt="Product image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 8px;">
             `;
         }
-        
+
         function removeImage() {
             if (confirm('Yakin ingin menghapus gambar?')) {
                 document.getElementById('gambar_filename').value = '';
@@ -1056,8 +1084,7 @@ $products = $stmt->fetchAll();
                 document.getElementById('imageUrl').value = '';
             }
         }
-        
-        // Initialize upload method on page load
+
         document.addEventListener('DOMContentLoaded', function() {
             switchUploadMethod('file');
         });
