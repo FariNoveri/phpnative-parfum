@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'config/midtrans_config.php'; // TAMBAHAN BARU
 
 // Get cart items
 if (isLoggedIn()) {
@@ -56,53 +57,38 @@ if ($_POST) {
     if (empty($nama) || empty($email) || empty($telepon) || empty($alamat)) {
         $error = 'Semua field yang wajib harus diisi';
     } else {
-        try {
-            $pdo->beginTransaction();
-            
-            // Create order
-            $stmt = $pdo->prepare("INSERT INTO orders (user_id, nama_customer, email_customer, telepon_customer, alamat_customer, total_harga, notes) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                isLoggedIn() ? getUserId() : null,
-                $nama,
-                $email,
-                $telepon,
-                $alamat,
-                $total,
-                $notes
+        // Store pending order data in session
+        $_SESSION['pending_order'] = [
+            'items' => $cart_items,
+            'total' => $total,
+            'customer' => [
+                'nama' => $nama,
+                'email' => $email,
+                'telepon' => $telepon,
+                'alamat' => $alamat,
+                'notes' => $notes
+            ],
+            'user_id' => isLoggedIn() ? getUserId() : null,
+            'session_id' => !isLoggedIn() ? ($_SESSION['session_id'] ?? null) : null
+        ];
+        
+        $temp_order_id = 'temp_' . uniqid();
+        $_SESSION['pending_temp_order_id'] = $temp_order_id;
+        
+        // Return JSON untuk handle Midtrans
+        if (isset($_POST['ajax']) && $_POST['ajax'] == 1) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'success',
+                'order_id' => $temp_order_id,
+                'message' => 'Pesanan siap diproses'
             ]);
-            
-            $order_id = $pdo->lastInsertId();
-            
-            // Add order items and update stock
-            foreach ($cart_items as $item) {
-                // Insert order item
-                $stmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, jumlah, harga) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$order_id, $item['product_id'], $item['jumlah'], $item['harga']]);
-                
-                // Update product stock
-                $stmt = $pdo->prepare("UPDATE products SET stok = stok - ? WHERE id = ?");
-                $stmt->execute([$item['jumlah'], $item['product_id']]);
-            }
-            
-            // Clear cart
-            if (isLoggedIn()) {
-                $stmt = $pdo->prepare("DELETE FROM cart WHERE user_id = ?");
-                $stmt->execute([getUserId()]);
-            } else {
-                $stmt = $pdo->prepare("DELETE FROM cart WHERE session_id = ?");
-                $stmt->execute([$_SESSION['session_id']]);
-            }
-            
-            $pdo->commit();
-            
-            $_SESSION['message'] = 'Pesanan berhasil dibuat! ID Pesanan: ' . $order_id;
-            $_SESSION['message_type'] = 'success';
-            redirect('order_confirmation.php?id=' . $order_id);
-            
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $error = 'Terjadi kesalahan saat memproses pesanan';
+            exit;
         }
+        
+        $_SESSION['message'] = 'Data pesanan tersimpan. Silakan lanjutkan pembayaran.';
+        $_SESSION['message_type'] = 'success';
+        redirect('checkout.php'); // Atau halaman lain jika diperlukan
     }
 }
 ?>
@@ -316,12 +302,17 @@ if ($_POST) {
             background: #5a67d8;
         }
         
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
         .btn-success {
             background: #27ae60;
             margin-top: 2rem;
         }
         
-        .btn-success:hover {
+        .btn-success:hover:not(:disabled) {
             background: #229954;
         }
         
@@ -358,6 +349,27 @@ if ($_POST) {
         
         .required {
             color: #e74c3c;
+        }
+        
+        .payment-info {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #eee;
+        }
+        
+        .payment-info h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        .loading.active {
+            display: block;
         }
         
         @media (max-width: 768px) {
@@ -417,7 +429,7 @@ if ($_POST) {
                 <div class="checkout-form">
                     <h2>Data Pembeli</h2>
                     
-                    <form method="POST">
+                    <form method="POST" id="checkoutForm">
                         <div class="form-group">
                             <label for="nama">Nama Lengkap <span class="required">*</span></label>
                             <input type="text" id="nama" name="nama" required 
@@ -446,7 +458,11 @@ if ($_POST) {
                             <textarea id="notes" name="notes" placeholder="Catatan khusus untuk pesanan Anda..."><?= htmlspecialchars($_POST['notes'] ?? '') ?></textarea>
                         </div>
                         
-                        <button type="submit" class="btn btn-success">Buat Pesanan</button>
+                        <button type="submit" class="btn btn-success" id="payButton">💳 Bayar Sekarang</button>
+                        
+                        <div class="loading" id="loading">
+                            <p>⏳ Memproses pembayaran...</p>
+                        </div>
                     </form>
                 </div>
 
@@ -479,18 +495,167 @@ if ($_POST) {
                         </div>
                     </div>
                     
-                    <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
-                        <h3 style="margin-bottom: 1rem;">💳 Metode Pembayaran</h3>
-                        <p><strong>Transfer Bank:</strong></p>
-                        <p>BCA: 1234567890</p>
-                        <p>Mandiri: 0987654321</p>
-                        <p>a.n. Toko Parfum Premium</p>
+                    <div class="payment-info">
+                        <h3>💳 Metode Pembayaran</h3>
+                        <p><strong>Midtrans Payment Gateway</strong></p>
+                        <p>✅ Transfer Bank</p>
+                        <p>✅ E-Wallet (GoPay, OVO, DANA)</p>
+                        <p>✅ Kartu Kredit/Debit</p>
+                        <p>✅ Alfamart/Indomaret</p>
                         <br>
-                        <p><small>⚠️ Setelah checkout, Anda akan mendapat instruksi untuk konfirmasi pembayaran via WhatsApp</small></p>
+                        <p><small>🔒 Pembayaran aman dengan Midtrans</small></p>
                     </div>
                 </div>
             </div>
         </div>
     </main>
+
+    <!-- Midtrans Snap JS -->
+    <script src="<?php echo MIDTRANS_SNAP_URL; ?>" data-client-key="<?php echo MIDTRANS_CLIENT_KEY; ?>"></script>
+    
+    <script>
+    let tempOrderId = null;
+    
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const payButton = document.getElementById('payButton');
+        const loading = document.getElementById('loading');
+        
+        // Disable button
+        payButton.disabled = true;
+        loading.classList.add('active');
+        
+        // Ambil form data
+        const formData = new FormData(this);
+        formData.append('ajax', '1');
+        
+        // Submit form untuk store pending order
+        fetch('checkout.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                tempOrderId = data.order_id;
+                // Request snap token dari Midtrans
+                const midtransData = new FormData();
+                midtransData.append('order_id', data.order_id);
+                
+                return fetch('midtrans_payment.php', {
+                    method: 'POST',
+                    body: midtransData
+                })
+                .then(response => response.json())
+                .then(midtransResult => {
+                    return {
+                        order_id: data.order_id,
+                        ...midtransResult
+                    };
+                });
+            } else {
+                throw new Error(data.message || 'Gagal memproses pesanan');
+            }
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                // Trigger Midtrans Snap popup
+                snap.pay(data.snap_token, {
+                    onSuccess: function(result) {
+                        console.log('Payment success:', result);
+                        // Update status di database (akan create order)
+                        updatePaymentStatus(tempOrderId, 'settlement', result.transaction_id);
+                    },
+                    onPending: function(result) {
+                        console.log('Payment pending:', result);
+                        // Update status di database (akan create order dengan pending)
+                        updatePaymentStatus(tempOrderId, 'pending', result.transaction_id);
+                    },
+                    onError: function(result) {
+                        console.log('Payment error:', result);
+                        alert('Pembayaran gagal! Silakan coba lagi.');
+                        // Clear pending order
+                        clearPendingOrder(tempOrderId);
+                        payButton.disabled = false;
+                        loading.classList.remove('active');
+                    },
+                    onClose: function() {
+                        console.log('Payment popup closed');
+                        // User tutup popup tanpa bayar
+                        // Clear pending order
+                        clearPendingOrder(tempOrderId);
+                        alert('Pembayaran dibatalkan. Pesanan tidak diproses.');
+                        payButton.disabled = false;
+                        loading.classList.remove('active');
+                    }
+                });
+            } else {
+                throw new Error(data.message || 'Gagal memproses pembayaran');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+            // Clear pending jika ada error setelah store pending
+            if (tempOrderId) {
+                clearPendingOrder(tempOrderId);
+            }
+            payButton.disabled = false;
+            loading.classList.remove('active');
+        });
+    });
+    
+    // Function untuk update payment status (akan create order jika temp)
+    function updatePaymentStatus(orderId, transactionStatus, transactionId) {
+        const formData = new FormData();
+        formData.append('order_id', orderId);
+        formData.append('transaction_status', transactionStatus);
+        formData.append('transaction_id', transactionId || '');
+        
+        fetch('payment_callback.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = 'order_confirmation.php?id=' + data.order_id;
+            } else {
+                console.error('Failed to update payment status:', data.message);
+                // Tetap redirect meskipun update gagal, gunakan order_id dari response jika ada
+                const redirectId = data.order_id || orderId.replace('temp_', '');
+                window.location.href = 'order_confirmation.php?id=' + redirectId;
+            }
+        })
+        .catch(error => {
+            console.error('Error updating payment status:', error);
+            // Jika gagal create order, kembali ke cart
+            window.location.href = 'cart.php';
+        });
+    }
+    
+    // Function untuk clear pending order
+    function clearPendingOrder(orderId) {
+        if (!orderId) return;
+        
+        const cancelData = new FormData();
+        cancelData.append('order_id', orderId);
+        cancelData.append('action', 'cancel');
+        
+        fetch('payment_callback.php', {
+            method: 'POST',
+            body: cancelData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Pending cleared:', data);
+        })
+        .catch(error => {
+            console.error('Error clearing pending order:', error);
+            // Ignore error, since it's just cleanup
+        });
+    }
+    </script>
 </body>
 </html>

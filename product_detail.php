@@ -37,6 +37,10 @@ if (!$product) {
     exit();
 }
 
+// Parse images
+$images = explode('|', $product['all_images'] ?? '');
+$main_image = $images[0] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjIwMCIgeT0iMjAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==';
+
 // Fetch reviews
 $reviews_sql = "SELECT * FROM product_reviews WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC";
 $reviews_stmt = $pdo->prepare($reviews_sql);
@@ -50,8 +54,12 @@ $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $session_id = session_id();
 $pdo->prepare($log_sql)->execute([$product_id, $user_id, $ip, $session_id]);
 
-// Fetch similar products
-$similar_sql = "SELECT * FROM products WHERE id != ? AND (kategori = ? OR brand = ?) ORDER BY RAND() LIMIT 4";
+// Fetch similar products with primary images
+$similar_sql = "SELECT p.*, 
+                (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image
+                FROM products p 
+                WHERE p.id != ? AND (p.kategori = ? OR p.brand = ?) 
+                ORDER BY RAND() LIMIT 4";
 $similar_stmt = $pdo->prepare($similar_sql);
 $similar_stmt->execute([$product_id, $product['kategori'], $product['brand']]);
 $similar_products = $similar_stmt->fetchAll();
@@ -478,14 +486,10 @@ $cart_count = $cart_result['total'] ?? 0;
             <a href="index.php" class="back-button">← Kembali</a>
             <div class="product-header">
                 <div class="product-images">
-                    <?php
-                    $images = explode('|', $product['all_images'] ?? '');
-                    $main_image = $images[0] ?? $product['gambar'] ?? '';
-                    ?>
                     <img src="<?= htmlspecialchars($main_image) ?>" alt="Inspired by <?= htmlspecialchars($product['brand']) ?> <?= htmlspecialchars($product['nama_parfum']) ?>" class="main-image" id="mainImage">
                     <?php if (count($images) > 1): ?>
                         <div class="thumbnail-gallery">
-                            <?php foreach ($images as $img): ?>
+                            <?php foreach (array_slice($images, 1) as $img): ?>
                                 <img src="<?= htmlspecialchars($img) ?>" class="thumbnail" onclick="changeMainImage('<?= htmlspecialchars($img) ?>')">
                             <?php endforeach; ?>
                         </div>
@@ -607,7 +611,7 @@ $cart_count = $cart_result['total'] ?? 0;
                     <?php foreach ($similar_products as $similar): ?>
                         <div class="similar-card">
                             <a href="product_detail.php?id=<?= $similar['id'] ?>">
-                                <img src="<?= htmlspecialchars($similar['gambar']) ?>" alt="Inspired by <?= htmlspecialchars($similar['brand']) ?> <?= htmlspecialchars($similar['nama_parfum']) ?>" class="similar-image">
+                                <img src="<?= htmlspecialchars($similar['primary_image'] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjEwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==') ?>" alt="Inspired by <?= htmlspecialchars($similar['brand']) ?> <?= htmlspecialchars($similar['nama_parfum']) ?>" class="similar-image">
                             </a>
                             <div class="similar-info">
                                 <h3 class="similar-name">Inspired by <?= htmlspecialchars($similar['brand']) ?> <?= htmlspecialchars($similar['nama_parfum']) ?></h3>
