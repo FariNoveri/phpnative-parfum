@@ -42,6 +42,16 @@ foreach ($order_items as $item) {
 
 $wa_message .= "\nSaya akan segera mengirim bukti pembayaran. Terima kasih!";
 $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
+
+// Status display logic
+$payment_status = $order['status_pembayaran'] ?? 'pending';
+$status_display = ucfirst($payment_status);
+$status_color = match($payment_status) {
+    'settlement' => '#27ae60',
+    'pending' => '#f39c12',
+    'failed', 'cancelled' => '#e74c3c',
+    default => '#666'
+};
 ?>
 
 <!DOCTYPE html>
@@ -271,6 +281,13 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             text-align: center;
         }
         
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -338,7 +355,11 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
         <div class="order-card">
             <div class="order-header">
                 <div class="order-id">ID Pesanan: #<?= $order['id'] ?></div>
-                <div class="order-status">Status: <?= ucfirst($order['status']) ?></div>
+                <div class="order-status">
+                    <span class="status-badge" style="background-color: <?= $status_color ?>;">
+                        <?= $status_display ?> Pembayaran
+                    </span>
+                </div>
             </div>
 
             <div class="order-details">
@@ -423,10 +444,18 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             
             <div class="warning">
                 ⚠️ <strong>PENTING:</strong> Pesanan akan diproses setelah pembayaran dikonfirmasi. 
-                Status pesanan saat ini: <strong>PENDING</strong>
+                Status pembayaran saat ini: <strong><?= $status_display ?></strong>
+                <?php if ($payment_status === 'settlement'): ?>
+                    <br>Pembayaran berhasil! Pesanan sedang diproses.
+                <?php elseif ($payment_status === 'pending'): ?>
+                    <br>Silakan segera lakukan pembayaran dan konfirmasi.
+                <?php elseif (in_array($payment_status, ['failed', 'cancelled'])): ?>
+                    <br>Pembayaran gagal. Silakan coba lagi atau hubungi customer service.
+                <?php endif; ?>
             </div>
         </div>
 
+        <?php if ($payment_status !== 'settlement'): ?>
         <div class="whatsapp-section">
             <h3>📱 Langkah Terakhir</h3>
             <p>Setelah melakukan transfer, klik tombol di bawah untuk konfirmasi pembayaran via WhatsApp:</p>
@@ -438,6 +467,7 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
                 *Jangan lupa sertakan screenshot bukti transfer
             </p>
         </div>
+        <?php endif; ?>
 
         <div style="text-align: center;">
             <a href="index.php" class="back-btn">Kembali ke Beranda</a>
