@@ -23,7 +23,7 @@ Website e-commerce parfum premium dengan sistem admin lengkap, integrasi **Midtr
 - ✅ **WhatsApp Integration** untuk komunikasi dengan customer
 
 ## 📁 Struktur File (Update dengan folder utils/)
-
+```
 htdocs/toko-parfum/
 ├── config/
 │   ├── database.php              # Konfigurasi database
@@ -55,7 +55,7 @@ htdocs/toko-parfum/
 ├── admin_login.php               # Login admin
 ├── logout.php                    # Logout handler
 └── toko_parfum.sql               # Database schema (update dengan kolom Midtrans)
-
+```
 ## 🛠️ Cara Install
 
 ### 1. Persiapkan Environment
