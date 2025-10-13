@@ -1,5 +1,6 @@
 <?php
-// product_detail.php
+session_start();
+// product_detail.php - Updated with volume selection and review form
 require_once 'config/database.php';
 
 $product_id = (int)($_GET['id'] ?? 0);
@@ -9,7 +10,7 @@ if (!$product_id) {
     exit();
 }
 
-// Fetch product details
+// Fetch product details with volume options
 $sql = "SELECT p.*, 
         GROUP_CONCAT(DISTINCT pi.image_url ORDER BY pi.sort_order SEPARATOR '|') as all_images,
         CASE 
@@ -37,6 +38,12 @@ if (!$product) {
     exit();
 }
 
+// Fetch volume options
+$volume_sql = "SELECT * FROM product_volume_prices WHERE product_id = ? AND is_available = 1 ORDER BY volume_ml ASC";
+$volume_stmt = $pdo->prepare($volume_sql);
+$volume_stmt->execute([$product_id]);
+$volume_options = $volume_stmt->fetchAll();
+
 // Parse images
 $images = explode('|', $product['all_images'] ?? '');
 $main_image = $images[0] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjIwMCIgeT0iMjAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==';
@@ -54,7 +61,7 @@ $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $session_id = session_id();
 $pdo->prepare($log_sql)->execute([$product_id, $user_id, $ip, $session_id]);
 
-// Fetch similar products with primary images
+// Fetch similar products
 $similar_sql = "SELECT p.*, 
                 (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image
                 FROM products p 
@@ -63,7 +70,6 @@ $similar_sql = "SELECT p.*,
 $similar_stmt = $pdo->prepare($similar_sql);
 $similar_stmt->execute([$product_id, $product['kategori'], $product['brand']]);
 $similar_products = $similar_stmt->fetchAll();
-
 
 function renderStars($rating) {
     $full_stars = floor($rating);
@@ -89,6 +95,8 @@ if (isLoggedIn()) {
 $cart_result = $stmt->fetch();
 $cart_count = $cart_result['total'] ?? 0;
 
+$is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
+
 ?>
 
 <!DOCTYPE html>
@@ -96,7 +104,7 @@ $cart_count = $cart_result['total'] ?? 0;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inspired by <?= htmlspecialchars($product['brand']) ?> <?= htmlspecialchars($product['nama_parfum']) ?> - Parfum Refill Premium</title>
+    <title><?= htmlspecialchars($product['nama_parfum']) ?> - Parfum Refill Premium</title>
     <meta name="description" content="<?= htmlspecialchars(substr($product['deskripsi'], 0, 160)) ?>">
     <style>
         * {
@@ -228,10 +236,12 @@ $cart_count = $cart_result['total'] ?? 0;
             border-radius: 8px;
             cursor: pointer;
             transition: transform 0.3s;
+            border: 2px solid transparent;
         }
         
         .thumbnail:hover {
             transform: scale(1.05);
+            border-color: #667eea;
         }
         
         .product-info {
@@ -286,6 +296,138 @@ $cart_count = $cart_result['total'] ?? 0;
             margin-bottom: 2rem;
             color: #666;
         }
+
+        /* Volume Selection Styles */
+        .volume-selection {
+            margin-bottom: 2rem;
+        }
+
+        .volume-label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .volume-options {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .volume-option {
+            position: relative;
+        }
+
+        .volume-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .volume-option label {
+            display: block;
+            padding: 1rem 1.5rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .volume-option input[type="radio"]:checked + label {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .volume-option label:hover {
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .volume-ml {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+        }
+
+        .volume-price {
+            display: block;
+            font-size: 0.95rem;
+        }
+
+        .volume-stock {
+            display: block;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+            opacity: 0.8;
+        }
+
+        .volume-option.out-of-stock label {
+            background: #f5f5f5;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .volume-option.out-of-stock input[type="radio"] {
+            cursor: not-allowed;
+        }
+
+        /* Quantity Selection */
+        .quantity-selection {
+            margin-bottom: 2rem;
+        }
+
+        .quantity-label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .quantity-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+
+        .quantity-btn:hover {
+            background: #764ba2;
+            transform: scale(1.1);
+        }
+
+        .quantity-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+
+        .quantity-input {
+            width: 80px;
+            text-align: center;
+            font-size: 1.2rem;
+            padding: 0.5rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
         
         .add-to-cart {
             background: #27ae60;
@@ -301,6 +443,14 @@ $cart_count = $cart_result['total'] ?? 0;
         
         .add-to-cart:hover {
             background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+
+        .add-to-cart:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .product-description {
@@ -315,14 +465,16 @@ $cart_count = $cart_result['total'] ?? 0;
         }
         
         .spec-item {
-            background: #f8f9fa;
-            padding: 1rem;
+            background: white;
+            padding: 1.5rem;
             border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         
         .spec-title {
             font-weight: bold;
             margin-bottom: 0.5rem;
+            color: #667eea;
         }
         
         .reviews-section {
@@ -335,11 +487,13 @@ $cart_count = $cart_result['total'] ?? 0;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             margin-bottom: 1rem;
+            position: relative;
         }
         
         .review-header {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             margin-bottom: 0.5rem;
         }
         
@@ -350,6 +504,103 @@ $cart_count = $cart_result['total'] ?? 0;
         .review-date {
             color: #999;
             font-size: 0.9rem;
+        }
+
+        .review-rating {
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-delete:hover {
+            background: #c0392b;
+        }
+
+        .review-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .review-form h3 {
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .form-group-review {
+            margin-bottom: 1rem;
+        }
+
+        .form-group-review label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group-review input,
+        .form-group-review textarea,
+        .form-group-review select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .form-group-review textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .stars-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .star {
+            font-size: 2rem;
+            cursor: pointer;
+            color: #ddd;
+            transition: color 0.3s;
+        }
+
+        .star.selected {
+            color: #ffd700;
+        }
+
+        .submit-review {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .submit-review:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
         }
         
         .similar-products {
@@ -367,6 +618,11 @@ $cart_count = $cart_result['total'] ?? 0;
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.08);
             overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .similar-card:hover {
+            transform: translateY(-5px);
         }
         
         .similar-image {
@@ -451,6 +707,20 @@ $cart_count = $cart_result['total'] ?? 0;
             .main-image {
                 height: 300px;
             }
+
+            .volume-options {
+                flex-direction: column;
+            }
+
+            .volume-option label {
+                width: 100%;
+            }
+
+            .review-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -486,10 +756,10 @@ $cart_count = $cart_result['total'] ?? 0;
             <a href="index.php" class="back-button">← Kembali</a>
             <div class="product-header">
                 <div class="product-images">
-                    <img src="<?= htmlspecialchars($main_image) ?>" alt="Inspired by <?= htmlspecialchars($product['brand']) ?> <?= htmlspecialchars($product['nama_parfum']) ?>" class="main-image" id="mainImage">
+                    <img src="<?= htmlspecialchars($main_image) ?>" alt="<?= htmlspecialchars($product['nama_parfum']) ?>" class="main-image" id="mainImage">
                     <?php if (count($images) > 1): ?>
                         <div class="thumbnail-gallery">
-                            <?php foreach (array_slice($images, 1) as $img): ?>
+                            <?php foreach ($images as $img): ?>
                                 <img src="<?= htmlspecialchars($img) ?>" class="thumbnail" onclick="changeMainImage('<?= htmlspecialchars($img) ?>')">
                             <?php endforeach; ?>
                         </div>
@@ -497,36 +767,82 @@ $cart_count = $cart_result['total'] ?? 0;
                 </div>
                 
                 <div class="product-info">
-                    <h1 class="product-title">Inspired by <?= htmlspecialchars($product['brand']) ?> <?= htmlspecialchars($product['nama_parfum']) ?></h1>
-                    <div class="product-brand"><?= $product['volume_ml'] ?>ml • Refill Premium</div>
+                    <h1 class="product-title"><?= htmlspecialchars($product['nama_parfum']) ?></h1>
+                    <div class="product-brand">Refill Premium</div>
                     
                     <div class="product-rating">
                         <?= renderStars($product['rating_average']) ?>
                         <span>(<?= $product['total_reviews'] ?> reviews)</span>
                     </div>
                     
-                    <div class="product-price">
-                        <?= formatRupiah($product['final_price']) ?>
-                        <?php if ($product['discount_percentage'] > 0): ?>
-                            <span class="original-price"><?= formatRupiah($product['display_original_price']) ?></span>
-                            <span class="discount">-<?= $product['discount_percentage'] ?>%</span>
+                    <div class="product-price" id="displayPrice">
+                        <?php if (!empty($volume_options)): ?>
+                            <?= formatRupiah($volume_options[0]['price']) ?>
+                        <?php else: ?>
+                            <?= formatRupiah($product['final_price']) ?>
+                            <?php if ($product['discount_percentage'] > 0): ?>
+                                <span class="original-price"><?= formatRupiah($product['display_original_price']) ?></span>
+                                <span class="discount"><?= $product['discount_percentage'] ?>% OFF</span>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                     
                     <div class="product-meta">
-                        <span>Stok: <?= $product['stok'] ?></span>
+                        <span id="stockDisplay">
+                            Stok: <?= !empty($volume_options) ? $volume_options[0]['stock'] : $product['stok'] ?>
+                        </span>
                         <span>Terjual: <?= $product['total_sold'] ?></span>
                         <span>Dilihat hari ini: <?= $product['views_today'] ?></span>
                     </div>
                     
-                    <?php if ($product['stok'] > 0): ?>
-                        <form method="POST" action="add_to_cart.php">
-                            <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
-                            <button type="submit" class="add-to-cart">Tambah ke Keranjang</button>
-                        </form>
-                    <?php else: ?>
-                        <button class="add-to-cart" disabled>Stok Habis</button>
-                    <?php endif; ?>
+                    <form method="POST" action="utils/add_to_cart.php" id="cartForm">
+                        <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+                        
+                        <?php if (!empty($volume_options)): ?>
+                            <div class="volume-selection">
+                                <label class="volume-label">Pilih Volume:</label>
+                                <div class="volume-options">
+                                    <?php foreach ($volume_options as $index => $volume): ?>
+                                        <div class="volume-option <?= $volume['stock'] <= 0 ? 'out-of-stock' : '' ?>">
+                                            <input 
+                                                type="radio" 
+                                                name="volume_selected" 
+                                                id="volume_<?= $volume['volume_ml'] ?>" 
+                                                value="<?= $volume['volume_ml'] ?>"
+                                                data-price="<?= $volume['price'] ?>"
+                                                data-stock="<?= $volume['stock'] ?>"
+                                                <?= $index === 0 ? 'checked' : '' ?>
+                                                <?= $volume['stock'] <= 0 ? 'disabled' : '' ?>
+                                                onchange="updatePrice(this)"
+                                            >
+                                            <label for="volume_<?= $volume['volume_ml'] ?>">
+                                                <span class="volume-ml"><?= $volume['volume_ml'] ?> ml</span>
+                                                <span class="volume-price"><?= formatRupiah($volume['price']) ?></span>
+                                                <span class="volume-stock">
+                                                    <?= $volume['stock'] > 0 ? 'Stok: ' . $volume['stock'] : 'Stok Habis' ?>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <input type="hidden" name="volume_selected" value="<?= $product['volume_ml'] ?>">
+                        <?php endif; ?>
+
+                        <div class="quantity-selection">
+                            <label for="quantity" class="quantity-label">Jumlah:</label>
+                            <div class="quantity-control">
+                                <button type="button" class="quantity-btn" onclick="decreaseQuantity()">−</button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="<?= !empty($volume_options) ? $volume_options[0]['stock'] : $product['stok'] ?>" class="quantity-input" readonly>
+                                <button type="button" class="quantity-btn" onclick="increaseQuantity()">+</button>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="add-to-cart" id="addToCartBtn">
+                            🛒 Tambah ke Keranjang
+                        </button>
+                    </form>
                 </div>
             </div>
             
@@ -535,30 +851,67 @@ $cart_count = $cart_result['total'] ?? 0;
                 <p><?= nl2br(htmlspecialchars($product['deskripsi'])) ?></p>
             </div>
             
+            <?php if (!empty($product['scent_notes'])): ?>
             <div class="product-specs">
                 <div class="spec-item">
-                    <div class="spec-title">Scent Notes</div>
+                    <div class="spec-title">🌺 Scent Notes</div>
                     <p><?= htmlspecialchars($product['scent_notes']) ?></p>
                 </div>
+                <?php if ($product['longevity_hours']): ?>
                 <div class="spec-item">
-                    <div class="spec-title">Longevity</div>
+                    <div class="spec-title">⏱️ Longevity</div>
                     <p><?= $product['longevity_hours'] ?> hours</p>
                 </div>
+                <?php endif; ?>
                 <div class="spec-item">
-                    <div class="spec-title">Sillage</div>
+                    <div class="spec-title">💨 Sillage</div>
                     <p><?= ucfirst($product['sillage']) ?></p>
                 </div>
+                <?php if ($product['season']): ?>
                 <div class="spec-item">
-                    <div class="spec-title">Season</div>
-                    <p><?= implode(', ', explode(',', $product['season'])) ?></p>
+                    <div class="spec-title">🌤️ Season</div>
+                    <p><?= implode(', ', array_map('ucfirst', explode(',', $product['season']))) ?></p>
                 </div>
+                <?php endif; ?>
+                <?php if ($product['occasion']): ?>
                 <div class="spec-item">
-                    <div class="spec-title">Occasion</div>
-                    <p><?= implode(', ', explode(',', $product['occasion'])) ?></p>
+                    <div class="spec-title">🎉 Occasion</div>
+                    <p><?= implode(', ', array_map('ucfirst', explode(',', $product['occasion']))) ?></p>
                 </div>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
             
             <div class="reviews-section">
+                <h2>Tulis Review</h2>
+                <?php if (isLoggedIn()): ?>
+                    <div class="review-form">
+                        <form method="POST" action="utils/add_review.php">
+                            <input type="hidden" name="product_id" value="<?= $product_id ?>">
+                            <div class="form-group-review">
+                                <label for="rating">Rating:</label>
+                                <div class="stars-container">
+                                    <?php for ($i = 5; $i >= 1; $i--): ?>
+                                        <span class="star" onclick="setRating(<?= $i ?>)">⭐</span>
+                                    <?php endfor; ?>
+                                </div>
+                                <input type="hidden" id="rating" name="rating" value="0" required>
+                            </div>
+                            <div class="form-group-review">
+                                <label for="review_title">Judul Review:</label>
+                                <input type="text" id="review_title" name="review_title" required>
+                            </div>
+                            <div class="form-group-review">
+                                <label for="review_text">Review:</label>
+                                <textarea id="review_text" name="review_text" required></textarea>
+                            </div>
+                            <button type="submit" class="submit-review">Kirim Review</button>
+                        </form>
+                    </div>
+                <?php else: ?>
+                    <p>Login untuk menulis review.</p>
+                <?php endif; ?>
+
                 <h2>Reviews (<?= count($reviews) ?>)</h2>
                 <?php if (empty($reviews)): ?>
                     <p>Belum ada review untuk produk ini.</p>
@@ -566,61 +919,50 @@ $cart_count = $cart_result['total'] ?? 0;
                     <?php foreach ($reviews as $review): ?>
                         <div class="review">
                             <div class="review-header">
-                                <span class="review-author"><?= htmlspecialchars($review['customer_name']) ?></span>
-                                <span class="review-date"><?= date('d M Y', strtotime($review['created_at'])) ?></span>
+                                <div>
+                                    <span class="review-author"><?= htmlspecialchars($review['customer_name']) ?></span>
+                                    <span class="review-date"><?= date('d M Y', strtotime($review['created_at'])) ?></span>
+                                </div>
+                                <?php if ($is_admin): ?>
+                                    <div class="review-actions">
+                                        <a href="utils/delete_review.php?id=<?= $review['id'] ?>&product_id=<?= $product_id ?>" 
+                                           class="btn-delete" 
+                                           onclick="return confirm('Yakin ingin menghapus review ini?')">🗑️ Hapus</a>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                             <div class="review-rating"><?= renderStars($review['rating']) ?></div>
-                            <h3><?= htmlspecialchars($review['review_title']) ?></h3>
+                            <?php if ($review['review_title']): ?>
+                                <h3><?= htmlspecialchars($review['review_title']) ?></h3>
+                            <?php endif; ?>
                             <p><?= nl2br(htmlspecialchars($review['review_text'])) ?></p>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
-                
-                <?php if (isLoggedIn()): ?>
-                    <h3>Tulis Review</h3>
-                    <form method="POST" action="submit_review.php">
-                        <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
-                        <div>
-                            <label>Rating:</label>
-                            <select name="rating" required>
-                                <option value="5">5 ⭐</option>
-                                <option value="4">4 ⭐</option>
-                                <option value="3">3 ⭐</option>
-                                <option value="2">2 ⭐</option>
-                                <option value="1">1 ⭐</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>Judul:</label>
-                            <input type="text" name="review_title" required>
-                        </div>
-                        <div>
-                            <label>Review:</label>
-                            <textarea name="review_text" required></textarea>
-                        </div>
-                        <button type="submit">Kirim Review</button>
-                    </form>
-                <?php else: ?>
-                    <p>Silakan login untuk menulis review.</p>
-                <?php endif; ?>
             </div>
             
+            <?php if (!empty($similar_products)): ?>
             <div class="similar-products">
                 <h2>Produk Serupa</h2>
                 <div class="similar-grid">
                     <?php foreach ($similar_products as $similar): ?>
                         <div class="similar-card">
                             <a href="product_detail.php?id=<?= $similar['id'] ?>">
-                                <img src="<?= htmlspecialchars($similar['primary_image'] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjEwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==') ?>" alt="Inspired by <?= htmlspecialchars($similar['brand']) ?> <?= htmlspecialchars($similar['nama_parfum']) ?>" class="similar-image">
+                                <img src="<?= htmlspecialchars($similar['primary_image'] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjEwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==') ?>" alt="<?= htmlspecialchars($similar['nama_parfum']) ?>" class="similar-image">
                             </a>
                             <div class="similar-info">
-                                <h3 class="similar-name">Inspired by <?= htmlspecialchars($similar['brand']) ?> <?= htmlspecialchars($similar['nama_parfum']) ?></h3>
+                                <h3 class="similar-name">
+                                    <a href="product_detail.php?id=<?= $similar['id'] ?>" style="text-decoration: none; color: inherit;">
+                                        <?= htmlspecialchars($similar['nama_parfum']) ?>
+                                    </a>
+                                </h3>
                                 <p class="similar-price"><?= formatRupiah($similar['harga']) ?></p>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -654,6 +996,102 @@ $cart_count = $cart_result['total'] ?? 0;
     <script>
         function changeMainImage(src) {
             document.getElementById('mainImage').src = src;
+        }
+
+        function updatePrice(radio) {
+            const price = parseFloat(radio.dataset.price);
+            const stock = parseInt(radio.dataset.stock);
+            
+            // Update price display
+            const priceDisplay = document.getElementById('displayPrice');
+            priceDisplay.innerHTML = formatRupiah(price);
+            
+            // Update stock display
+            const stockDisplay = document.getElementById('stockDisplay');
+            stockDisplay.textContent = 'Stok: ' + stock;
+            
+            // Update quantity max
+            const quantityInput = document.getElementById('quantity');
+            quantityInput.max = stock;
+            if (parseInt(quantityInput.value) > stock) {
+                quantityInput.value = stock;
+            }
+            
+            // Update button state
+            updateButtonState(stock);
+        }
+
+        function updateButtonState(stock) {
+            const addToCartBtn = document.getElementById('addToCartBtn');
+            const quantity = parseInt(document.getElementById('quantity').value);
+            
+            if (stock <= 0) {
+                addToCartBtn.disabled = true;
+                addToCartBtn.textContent = '❌ Stok Habis';
+            } else if (quantity > stock) {
+                addToCartBtn.disabled = true;
+                addToCartBtn.textContent = '⚠️ Jumlah Melebihi Stok';
+            } else {
+                addToCartBtn.disabled = false;
+                addToCartBtn.textContent = '🛒 Tambah ke Keranjang';
+            }
+        }
+
+        function increaseQuantity() {
+            const quantityInput = document.getElementById('quantity');
+            const max = parseInt(quantityInput.max);
+            const current = parseInt(quantityInput.value);
+            
+            if (current < max) {
+                quantityInput.value = current + 1;
+                updateButtonState(max);
+            }
+        }
+
+        function decreaseQuantity() {
+            const quantityInput = document.getElementById('quantity');
+            const current = parseInt(quantityInput.value);
+            const max = parseInt(quantityInput.max);
+            
+            if (current > 1) {
+                quantityInput.value = current - 1;
+                updateButtonState(max);
+            }
+        }
+
+        function formatRupiah(number) {
+            return 'Rp ' + new Intl.NumberFormat('id-ID').format(number);
+        }
+
+        // Initialize button state on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedRadio = document.querySelector('input[name="volume_selected"]:checked');
+            if (selectedRadio) {
+                const stock = parseInt(selectedRadio.dataset.stock);
+                updateButtonState(stock);
+            }
+        });
+
+        // Listen to quantity input changes
+        document.getElementById('quantity').addEventListener('input', function() {
+            const selectedRadio = document.querySelector('input[name="volume_selected"]:checked');
+            if (selectedRadio) {
+                const stock = parseInt(selectedRadio.dataset.stock);
+                updateButtonState(stock);
+            }
+        });
+
+        // Review stars
+        function setRating(rating) {
+            const stars = document.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('selected');
+                } else {
+                    star.classList.remove('selected');
+                }
+            });
+            document.getElementById('rating').value = rating;
         }
     </script>
 </body>

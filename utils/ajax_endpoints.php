@@ -1,7 +1,7 @@
 <?php
 // ajax_endpoints.php - Complete AJAX endpoints for modern e-commerce features
 session_start();
-require_once 'config/database.php';
+require_once '../config/database.php';
 require_once 'functions.php'; // Assuming the additional functions are added here
 
 header('Content-Type: application/json');

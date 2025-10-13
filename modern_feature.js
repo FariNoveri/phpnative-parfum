@@ -305,7 +305,7 @@ class PerfumeStore {
                 
                 <div class="product-actions">
                     ${product.stok > 0 ? `
-                        <form method="POST" action="add_to_cart.php" style="flex: 1;">
+                        <form method="POST" action="utils/add_to_cart.php" style="flex: 1;">
                             <input type="hidden" name="product_id" value="${product.id}">
                             <button type="submit" class="add-to-cart">
                                 🛒 Tambah ke Keranjang
@@ -471,7 +471,7 @@ class PerfumeStore {
                     
                     <div class="quick-actions">
                         ${product.stok > 0 ? `
-                            <form method="POST" action="add_to_cart.php" style="flex: 1;">
+                            <form method="POST" action="utils/add_to_cart.php" style="flex: 1;">
                                 <input type="hidden" name="product_id" value="${product.id}">
                                 <button type="submit" class="btn add-to-cart">
                                     🛒 Tambah ke Keranjang
@@ -560,7 +560,7 @@ class PerfumeStore {
 
     initQuickAdd() {
         document.addEventListener('submit', (e) => {
-            if (e.target.action && e.target.action.includes('add_to_cart.php')) {
+            if (e.target.action && e.target.action.includes('utils/add_to_cart.php')) {
                 e.preventDefault();
                 this.quickAddToCart(e.target);
             }

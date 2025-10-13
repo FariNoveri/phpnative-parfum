@@ -20,11 +20,12 @@ if ($_POST) {
     $brand = trim($_POST['brand'] ?? '');
     $harga = (float)($_POST['harga'] ?? 0);
     $original_price = (float)($_POST['original_price'] ?? $harga);
+    $discount_type = $_POST['discount_type'] ?? 'percentage';
     $discount_percentage = (int)($_POST['discount_percentage'] ?? 0);
+    $discount_nominal = (float)($_POST['discount_nominal'] ?? 0);
     $stok = (int)($_POST['stok'] ?? 0);
     $deskripsi = trim($_POST['deskripsi'] ?? '');
     $kategori = $_POST['kategori'] ?? '';
-    $volume_ml = (int)($_POST['volume_ml'] ?? 100);
     $scent_notes = trim($_POST['scent_notes'] ?? '');
     $longevity_hours = (int)($_POST['longevity_hours'] ?? 0);
     $sillage = $_POST['sillage'] ?? '';
@@ -42,39 +43,63 @@ if ($_POST) {
     });
     $gambar = array_unique($gambar);
 
-    if (empty($nama_parfum) || empty($brand) || empty($kategori) || $harga <= 0 || $stok < 0 || $volume_ml < 1) {
-        $error = 'Semua field wajib harus diisi dengan benar';
+    // Handle discount calculation
+    if ($discount_type === 'nominal' && $original_price > 0) {
+        $discount_percentage = round(($discount_nominal / $original_price) * 100);
+    }
+
+    // Handle volumes
+    $volumes = [];
+    foreach ($_POST['volumes'] ?? [] as $v_data) {
+        $ml = (int)($v_data['ml'] ?? 0);
+        $price = (float)($v_data['price'] ?? 0);
+        $stock = (int)($v_data['stock'] ?? 0);
+        $available = isset($v_data['available']) ? 1 : 0;
+        if ($ml >= 1 && $price > 0 && $stock >= 0) {
+            $volumes[] = [
+                'ml' => $ml,
+                'price' => $price,
+                'stock' => $stock,
+                'is_available' => $available
+            ];
+        }
+    }
+
+    if (empty($nama_parfum) || empty($brand) || empty($kategori) || $original_price <= 0 || empty($volumes)) {
+        $error = 'Semua field wajib harus diisi dengan benar, termasuk minimal satu volume option';
     } elseif (count($gambar) < 1 || count($gambar) > 5) {
         $error = 'Gambar produk harus antara 1 hingga 5 buah';
     } else {
-        // Clear old images for edit
-        if ($action === 'edit' && $product_id > 0) {
-            $stmt = $pdo->prepare("DELETE FROM product_images WHERE product_id = ?");
-            $stmt->execute([$product_id]);
-        }
-
-        $sort_order = 0;
-        foreach ($gambar as $img_url) {
-            $stmt = $pdo->prepare("INSERT INTO product_images (product_id, image_url, alt_text, sort_order, is_primary) VALUES (?, ?, ?, ?, ?)");
-            $is_primary = ($sort_order === 0) ? 1 : 0;
-            $alt_text = $brand . ' ' . $nama_parfum;
-            $stmt->execute([$product_id, $img_url, $alt_text, $sort_order, $is_primary]);
-            $sort_order++;
+        if (!empty($volumes)) {
+            $first_volume = reset($volumes);
+            $harga = $first_volume['price'];
+            $stok = 0;
+            foreach ($volumes as $v) {
+                $stok += $v['stock'];
+            }
         }
 
         if ($action === 'add') {
             $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, brand, harga, original_price, discount_percentage, stok, deskripsi, kategori, volume_ml, scent_notes, longevity_hours, sillage, season, occasion, tags, is_refill) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $volume_ml, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill])) {
+            if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill])) {
                 $new_id = $pdo->lastInsertId();
-                // Insert images with correct product_id
+
+                // Insert images
                 $sort_order = 0;
                 foreach ($gambar as $img_url) {
                     $stmt_img = $pdo->prepare("INSERT INTO product_images (product_id, image_url, alt_text, sort_order, is_primary) VALUES (?, ?, ?, ?, ?)");
                     $is_primary = ($sort_order === 0) ? 1 : 0;
-                    $alt_text = $brand . ' ' . $nama_parfum;
+                    $alt_text = $nama_parfum;
                     $stmt_img->execute([$new_id, $img_url, $alt_text, $sort_order, $is_primary]);
                     $sort_order++;
                 }
+
+                // Insert volumes
+                foreach ($volumes as $vol) {
+                    $stmt_vol = $pdo->prepare("INSERT INTO product_volume_prices (product_id, volume_ml, price, stock, is_available) VALUES (?, ?, ?, ?, ?)");
+                    $stmt_vol->execute([$new_id, $vol['ml'], $vol['price'], $vol['stock'], $vol['is_available']]);
+                }
+
                 logAdminActivity('ADD_PRODUCT', "Menambah produk: $nama_parfum");
                 $_SESSION['message'] = 'Produk berhasil ditambahkan';
                 $_SESSION['message_type'] = 'success';
@@ -85,11 +110,31 @@ if ($_POST) {
 
         if ($action === 'edit' && $product_id > 0 && empty($error)) {
             $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, brand = ?, harga = ?, original_price = ?, discount_percentage = ?, stok = ?, deskripsi = ?, kategori = ?, volume_ml = ?, scent_notes = ?, longevity_hours = ?, sillage = ?, season = ?, occasion = ?, tags = ?, is_refill = ? WHERE id = ?");
-            if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $volume_ml, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $product_id])) {
-                // Update alt_text for images
-                $stmt_alt = $pdo->prepare("UPDATE product_images SET alt_text = ? WHERE product_id = ?");
-                $alt_text = $brand . ' ' . $nama_parfum;
-                $stmt_alt->execute([$alt_text, $product_id]);
+            if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $product_id])) {
+                // Delete and insert new images
+                $stmt_img_del = $pdo->prepare("DELETE FROM product_images WHERE product_id = ?");
+                $stmt_img_del->execute([$product_id]);
+
+                $sort_order = 0;
+                foreach ($gambar as $img_url) {
+                    $stmt_img = $pdo->prepare("INSERT INTO product_images (product_id, image_url, alt_text, sort_order, is_primary) VALUES (?, ?, ?, ?, ?)");
+                    $is_primary = ($sort_order === 0) ? 1 : 0;
+                    $alt_text = $nama_parfum;
+                    $stmt_img->execute([$product_id, $img_url, $alt_text, $sort_order, $is_primary]);
+                    $sort_order++;
+                }
+
+                // Update alt_text if any old images, but since deleted, ok
+
+                // Delete and insert new volumes
+                $stmt_vol_del = $pdo->prepare("DELETE FROM product_volume_prices WHERE product_id = ?");
+                $stmt_vol_del->execute([$product_id]);
+
+                foreach ($volumes as $vol) {
+                    $stmt_vol = $pdo->prepare("INSERT INTO product_volume_prices (product_id, volume_ml, price, stock, is_available) VALUES (?, ?, ?, ?, ?)");
+                    $stmt_vol->execute([$product_id, $vol['ml'], $vol['price'], $vol['stock'], $vol['is_available']]);
+                }
+
                 logAdminActivity('EDIT_PRODUCT', "Mengedit produk: $nama_parfum (ID: $product_id)");
                 $_SESSION['message'] = 'Produk berhasil diupdate';
                 $_SESSION['message_type'] = 'success';
@@ -116,9 +161,11 @@ if ($action === 'delete' && $product_id > 0) {
     $stmt->execute([$product_id]);
     $product_name = $stmt->fetchColumn() ?? '';
 
-    // Delete images first
+    // Delete images and volumes first
     $stmt_img = $pdo->prepare("DELETE FROM product_images WHERE product_id = ?");
     $stmt_img->execute([$product_id]);
+    $stmt_vol = $pdo->prepare("DELETE FROM product_volume_prices WHERE product_id = ?");
+    $stmt_vol->execute([$product_id]);
 
     $stmt = $pdo->prepare("DELETE FROM products WHERE id = ?");
     if ($stmt->execute([$product_id])) {
@@ -134,6 +181,7 @@ if ($action === 'delete' && $product_id > 0) {
 
 // Get product for editing
 $product = null;
+$volumes_data = [];
 if ($action === 'edit' && $product_id > 0) {
     $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ?");
     $stmt->execute([$product_id]);
@@ -143,18 +191,47 @@ if ($action === 'edit' && $product_id > 0) {
         redirect('products.php');
     }
 
+    // Get volumes
+    $vol_stmt = $pdo->prepare("SELECT * FROM product_volume_prices WHERE product_id = ? ORDER BY volume_ml ASC");
+    $vol_stmt->execute([$product_id]);
+    $db_volumes = $vol_stmt->fetchAll();
+    foreach ($db_volumes as $v) {
+        $volumes_data[] = [
+            'ml' => $v['volume_ml'],
+            'price' => $v['price'],
+            'stock' => $v['stock'],
+            'available' => $v['is_available']
+        ];
+    }
+
+    // Set discount nominal for display
+    if ($product['discount_percentage'] > 0 && $product['original_price'] > 0) {
+        $product['discount_nominal'] = round($product['original_price'] * $product['discount_percentage'] / 100);
+    }
+
     // Get images
     $stmt_img = $pdo->prepare("SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order ASC");
     $stmt_img->execute([$product_id]);
     $product['gambar'] = $stmt_img->fetchAll(PDO::FETCH_COLUMN);
 }
 
+// Use form_data for volumes
+$volumes_data = $form_data['volumes'] ?? $volumes_data;
+
 // Get all products
 $search = $_GET['search'] ?? '';
 $kategori_filter = $_GET['kategori'] ?? '';
 $sort = $_GET['sort'] ?? 'created_at DESC';
 
-$sql = "SELECT p.* FROM products p WHERE 1=1";
+$sql = "SELECT p.*, 
+        COALESCE(v.min_price, p.harga) as display_harga,
+        COALESCE(vs.total_stock, p.stok) as display_stok,
+        CASE WHEN vp.product_id IS NOT NULL THEN 1 ELSE 0 END as has_volumes
+        FROM products p 
+        LEFT JOIN (SELECT product_id, MIN(price) as min_price FROM product_volume_prices GROUP BY product_id) v ON p.id = v.product_id
+        LEFT JOIN (SELECT product_id, SUM(stock) as total_stock FROM product_volume_prices GROUP BY product_id) vs ON p.id = vs.product_id
+        LEFT JOIN product_volume_prices vp ON p.id = vp.product_id
+        WHERE 1=1";
 $params = [];
 
 if ($search) {
@@ -168,13 +245,16 @@ if ($kategori_filter) {
     $params[] = $kategori_filter;
 }
 
-$sql .= " ORDER BY $sort";
+$sql .= " GROUP BY p.id ORDER BY $sort";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
 
 foreach ($products as &$p) {
+    $p['harga'] = $p['display_harga'];
+    $p['stok'] = $p['display_stok'];
+
     // Get first image for display
     $stmt_first = $pdo->prepare("SELECT image_url FROM product_images WHERE product_id = ? AND is_primary = 1 LIMIT 1");
     $stmt_first->execute([$p['id']]);
@@ -663,6 +743,25 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             margin-top: 0.5rem;
         }
 
+        .volume-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        .volume-row input {
+            flex: 1;
+        }
+
+        .volume-row label {
+            margin: 0;
+            white-space: nowrap;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -687,6 +786,10 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             }
             #imagesContainer {
                 justify-content: flex-start;
+            }
+            .volume-row {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
     </style>
@@ -785,33 +888,35 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="harga">Harga (Rp) *</label>
-                                    <input type="number" id="harga" name="harga" required min="0" step="0.01"
-                                           value="<?= $form_data['harga'] ?? $product['harga'] ?? '' ?>">
+                                    <label for="original_price">Harga Asli (Rp) *</label>
+                                    <input type="number" id="original_price" name="original_price" required min="0" step="0.01"
+                                           value="<?= $form_data['original_price'] ?? $product['original_price'] ?? '' ?>" onchange="calculateDiscount()">
                                 </div>
                                 <div class="form-group">
-                                    <label for="original_price">Harga Asli (Rp)</label>
-                                    <input type="number" id="original_price" name="original_price" min="0" step="0.01"
-                                           value="<?= $form_data['original_price'] ?? $product['original_price'] ?? '' ?>">
+                                    <label for="discount_type">Jenis Diskon</label>
+                                    <select id="discount_type" name="discount_type" onchange="toggleDiscountType()">
+                                        <option value="percentage" <?= ($form_data['discount_type'] ?? ($product['discount_percentage'] > 0 ? 'percentage' : 'percentage')) === 'percentage' ? 'selected' : '' ?>>Persentase (%)</option>
+                                        <option value="nominal" <?= ($form_data['discount_type'] ?? 'percentage') === 'nominal' ? 'selected' : '' ?>>Nominal (Rp)</option>
+                                    </select>
                                 </div>
-                                <div class="form-group">
+                                <div class="form-group" id="discount_percentage_group">
                                     <label for="discount_percentage">Diskon (%)</label>
                                     <input type="number" id="discount_percentage" name="discount_percentage" min="0" max="100"
-                                           value="<?= $form_data['discount_percentage'] ?? $product['discount_percentage'] ?? 0 ?>">
+                                           value="<?= $form_data['discount_percentage'] ?? $product['discount_percentage'] ?? 0 ?>" onchange="calculateDiscount()">
+                                </div>
+                                <div class="form-group" id="discount_nominal_group" style="display: none;">
+                                    <label for="discount_nominal">Diskon (Rp)</label>
+                                    <input type="number" id="discount_nominal" name="discount_nominal" min="0" step="1000"
+                                           value="<?= $form_data['discount_nominal'] ?? ($product['discount_nominal'] ?? 0) ?>" onchange="calculateDiscount()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="harga">Harga Diskon (Rp)</label>
+                                    <input type="number" id="harga" name="harga" min="0" step="0.01" readonly
+                                           value="<?= $form_data['harga'] ?? $product['harga'] ?? '' ?>">
                                 </div>
                             </div>
 
                             <div class="form-row">
-                                <div class="form-group">
-                                    <label for="stok">Stok *</label>
-                                    <input type="number" id="stok" name="stok" required min="0"
-                                           value="<?= $form_data['stok'] ?? $product['stok'] ?? '' ?>">
-                                </div>
-                                <div class="form-group">
-                                    <label for="volume_ml">Volume (ml) *</label>
-                                    <input type="number" id="volume_ml" name="volume_ml" required min="1"
-                                           value="<?= $form_data['volume_ml'] ?? $product['volume_ml'] ?? 100 ?>">
-                                </div>
                                 <div class="form-group">
                                     <label for="kategori">Kategori *</label>
                                     <select id="kategori" name="kategori" required>
@@ -820,6 +925,29 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                         <option value="wanita" <?= ($form_data['kategori'] ?? $product['kategori'] ?? '') === 'wanita' ? 'selected' : '' ?>>Wanita</option>
                                         <option value="unisex" <?= ($form_data['kategori'] ?? $product['kategori'] ?? '') === 'unisex' ? 'selected' : '' ?>>Unisex</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label>Volume Options (Minimal 1) *</label>
+                                    <div id="volumesContainer">
+                                        <?php if (!empty($volumes_data)): ?>
+                                            <?php foreach ($volumes_data as $idx => $vol): ?>
+                                                <div class="volume-row">
+                                                    <input type="number" name="volumes[<?= $idx ?>][ml]" placeholder="Volume (ml)" min="1" required
+                                                           value="<?= htmlspecialchars($vol['ml'] ?? '') ?>">
+                                                    <input type="number" name="volumes[<?= $idx ?>][price]" placeholder="Harga (Rp)" min="0" step="1000" required
+                                                           value="<?= $vol['price'] ?? '' ?>">
+                                                    <input type="number" name="volumes[<?= $idx ?>][stock]" placeholder="Stok" min="0" required
+                                                           value="<?= $vol['stock'] ?? '' ?>">
+                                                    <label><input type="checkbox" name="volumes[<?= $idx ?>][available]" <?= isset($vol['available']) && $vol['available'] ? 'checked' : '' ?>> Available</label>
+                                                    <button type="button" onclick="removeVolumeRow(this)" style="background: #e74c3c; color: white; border: none; padding: 0.5rem; border-radius: 4px;">Remove</button>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                    <button type="button" onclick="addVolumeRow()" class="btn btn-sm">➕ Tambah Volume</button>
                                 </div>
                             </div>
 
@@ -948,6 +1076,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
 
                 <script>
                     let currentUploadMethod = 'file';
+                    let volumeIndex = <?= count($volumes_data) ?>;
 
                     function getImageCount() {
                         return document.querySelectorAll('input[name="gambar[]"]').length;
@@ -1107,9 +1236,63 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                         }
                     }
 
+                    // Volume management
+                    function addVolumeRow() {
+                        const container = document.getElementById('volumesContainer');
+                        const row = document.createElement('div');
+                        row.className = 'volume-row';
+                        row.innerHTML = `
+                            <input type="number" name="volumes[${volumeIndex}][ml]" placeholder="Volume (ml)" min="1" required style="flex:1;">
+                            <input type="number" name="volumes[${volumeIndex}][price]" placeholder="Harga (Rp)" min="0" step="1000" required style="flex:1;">
+                            <input type="number" name="volumes[${volumeIndex}][stock]" placeholder="Stok" min="0" required style="flex:1;">
+                            <label style="white-space: nowrap;"><input type="checkbox" name="volumes[${volumeIndex}][available]" checked> Available</label>
+                            <button type="button" onclick="removeVolumeRow(this)" style="background: #e74c3c; color: white; border: none; padding: 0.5rem; border-radius: 4px;">Remove</button>
+                        `;
+                        container.appendChild(row);
+                        volumeIndex++;
+                    }
+
+                    function removeVolumeRow(button) {
+                        if (confirm('Yakin ingin menghapus volume ini?')) {
+                            button.closest('.volume-row').remove();
+                        }
+                    }
+
+                    // Discount calculation
+                    function calculateDiscount() {
+                        const original = parseFloat(document.getElementById('original_price').value) || 0;
+                        const type = document.getElementById('discount_type').value;
+                        let discValue = 0;
+
+                        if (type === 'percentage') {
+                            discValue = parseFloat(document.getElementById('discount_percentage').value) || 0;
+                            const nominal = original * (discValue / 100);
+                            document.getElementById('discount_nominal').value = Math.round(nominal);
+                            const harga = original * (1 - discValue / 100);
+                            document.getElementById('harga').value = Math.round(harga);
+                        } else {
+                            discValue = parseFloat(document.getElementById('discount_nominal').value) || 0;
+                            const perc = original > 0 ? (discValue / original) * 100 : 0;
+                            document.getElementById('discount_percentage').value = Math.round(perc);
+                            const harga = original - discValue;
+                            document.getElementById('harga').value = Math.round(harga);
+                        }
+                    }
+
+                    function toggleDiscountType() {
+                        const type = document.getElementById('discount_type').value;
+                        document.getElementById('discount_percentage_group').style.display = type === 'percentage' ? 'block' : 'none';
+                        document.getElementById('discount_nominal_group').style.display = type === 'nominal' ? 'block' : 'none';
+                        calculateDiscount();
+                    }
+
                     document.addEventListener('DOMContentLoaded', function() {
                         switchUploadMethod('file');
                         checkMaxImages();
+                        toggleDiscountType();
+                        if (document.querySelectorAll('.volume-row').length === 0) {
+                            addVolumeRow();
+                        }
                     });
                 </script>
 
@@ -1199,20 +1382,24 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                                     </div>
                                                     <div>
                                                         <div class="product-name"><?= htmlspecialchars($product['nama_parfum']) ?></div>
-                                                        <div class="product-brand"><?= htmlspecialchars($product['brand']) ?> • <?= $product['volume_ml'] ?>ml</div>
+                                                        <div class="product-brand"><?= $product['volume_ml'] ?? 100 ?>ml</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
                                                 <strong><?= formatRupiah($product['harga']) ?></strong>
-                                                <?php if ($product['discount_percentage'] > 0): ?>
+                                                <?php if (!$product['has_volumes'] && $product['discount_percentage'] > 0): ?>
                                                     <span style="color: #999; text-decoration: line-through; margin-left: 0.5rem;">
                                                         <?= formatRupiah($product['original_price'] ?? $product['harga']) ?>
                                                     </span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <?= $product['discount_percentage'] ?>%
+                                                <?php if (!$product['has_volumes']): ?>
+                                                    <?= $product['discount_percentage'] ?>%
+                                                <?php else: ?>
+                                                    -
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <span class="stock-badge <?= $product['stok'] <= 5 ? 'stock-low' : ($product['stok'] <= 15 ? 'stock-medium' : 'stock-high') ?>">

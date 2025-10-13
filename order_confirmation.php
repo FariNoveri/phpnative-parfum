@@ -3,7 +3,13 @@ require_once 'config/database.php';
 
 $order_id = (int)($_GET['id'] ?? 0);
 
+// Debug log
+error_log('Order Confirmation - Requested ID: ' . $order_id);
+
 if ($order_id <= 0) {
+    error_log('Order Confirmation - Invalid ID, redirecting to index');
+    $_SESSION['message'] = 'ID pesanan tidak valid';
+    $_SESSION['message_type'] = 'error';
     redirect('index.php');
 }
 
@@ -13,10 +19,22 @@ $stmt->execute([$order_id]);
 $order = $stmt->fetch();
 
 if (!$order) {
-    $_SESSION['message'] = 'Pesanan tidak ditemukan';
+    error_log('Order Confirmation - Order not found: ' . $order_id);
+    
+    // Cek apakah ada pending order di session
+    if (isset($_SESSION['pending_order'])) {
+        error_log('Order Confirmation - Found pending order in session');
+        $_SESSION['message'] = 'Pesanan belum selesai diproses. Silakan coba lagi atau hubungi admin.';
+    } else {
+        error_log('Order Confirmation - No pending order in session');
+        $_SESSION['message'] = 'Pesanan tidak ditemukan';
+    }
+    
     $_SESSION['message_type'] = 'error';
     redirect('index.php');
 }
+
+error_log('Order Confirmation - Order found: ' . $order_id . ', Status: ' . $order['status_pembayaran']);
 
 // Get order items
 $stmt = $pdo->prepare("
@@ -47,7 +65,7 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
 $payment_status = $order['status_pembayaran'] ?? 'pending';
 $status_display = ucfirst($payment_status);
 $status_color = match($payment_status) {
-    'settlement' => '#27ae60',
+    'settlement', 'paid' => '#27ae60',
     'pending' => '#f39c12',
     'failed', 'cancelled' => '#e74c3c',
     default => '#666'
@@ -281,6 +299,16 @@ $status_color = match($payment_status) {
             text-align: center;
         }
         
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            border: 1px solid #c3e6cb;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
         .status-badge {
             padding: 0.5rem 1rem;
             border-radius: 20px;
@@ -342,10 +370,29 @@ $status_color = match($payment_status) {
         .step-text {
             font-weight: 500;
         }
+        
+        .debug-info {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.85rem;
+            display: none; /* Hide by default, enable for debugging */
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Debug Info (hidden by default) -->
+        <div class="debug-info" style="display: none;">
+            <strong>Debug Info:</strong><br>
+            Order ID: <?= $order_id ?><br>
+            Payment Status: <?= $payment_status ?><br>
+            Transaction ID: <?= $order['midtrans_transaction_id'] ?? 'N/A' ?><br>
+        </div>
+
         <div class="header">
             <div class="checkmark">✅</div>
             <h1>Pesanan Berhasil Dibuat!</h1>
@@ -418,55 +465,40 @@ $status_color = match($payment_status) {
             </div>
             <div class="step">
                 <div class="step-number">2</div>
-                <div class="step-text">Transfer Pembayaran</div>
+                <div class="step-text">Pembayaran</div>
             </div>
             <div class="step">
                 <div class="step-number">3</div>
-                <div class="step-text">Konfirmasi via WhatsApp</div>
+                <div class="step-text">Konfirmasi</div>
             </div>
         </div>
 
-        <div class="payment-instructions">
-            <h3>💳 Instruksi Pembayaran</h3>
-            <p><strong>Silakan transfer ke salah satu rekening berikut:</strong></p>
-            
-            <div class="bank-info">
-                <strong>Bank BCA</strong><br>
-                No. Rekening: <strong>1234567890</strong><br>
-                a.n. <strong>Toko Parfum Premium</strong>
+        <?php if ($payment_status === 'settlement' || $payment_status === 'paid'): ?>
+            <div class="success-message">
+                ✅ <strong>Pembayaran Berhasil!</strong><br>
+                Pesanan Anda sedang diproses. Kami akan mengirimkan konfirmasi melalui email.
+            </div>
+        <?php elseif ($payment_status === 'pending'): ?>
+            <div class="payment-instructions">
+                <h3>💳 Menunggu Pembayaran</h3>
+                <p><strong>Status:</strong> Pembayaran sedang diproses</p>
+                <p>Jika Anda belum menyelesaikan pembayaran, silakan cek email atau lakukan pembayaran sekarang.</p>
             </div>
             
-            <div class="bank-info">
-                <strong>Bank Mandiri</strong><br>
-                No. Rekening: <strong>0987654321</strong><br>
-                a.n. <strong>Toko Parfum Premium</strong>
+            <div class="whatsapp-section">
+                <h3>📱 Butuh Bantuan?</h3>
+                <p>Hubungi kami via WhatsApp untuk konfirmasi pembayaran:</p>
+                <br>
+                <a href="<?= $wa_link ?>" target="_blank" class="whatsapp-btn">
+                    📱 Hubungi via WhatsApp
+                </a>
             </div>
-            
+        <?php else: ?>
             <div class="warning">
-                ⚠️ <strong>PENTING:</strong> Pesanan akan diproses setelah pembayaran dikonfirmasi. 
-                Status pembayaran saat ini: <strong><?= $status_display ?></strong>
-                <?php if ($payment_status === 'settlement'): ?>
-                    <br>Pembayaran berhasil! Pesanan sedang diproses.
-                <?php elseif ($payment_status === 'pending'): ?>
-                    <br>Silakan segera lakukan pembayaran dan konfirmasi.
-                <?php elseif (in_array($payment_status, ['failed', 'cancelled'])): ?>
-                    <br>Pembayaran gagal. Silakan coba lagi atau hubungi customer service.
-                <?php endif; ?>
+                ⚠️ <strong>Pembayaran Gagal</strong><br>
+                Status: <?= $status_display ?><br>
+                Silakan coba lagi atau hubungi customer service.
             </div>
-        </div>
-
-        <?php if ($payment_status !== 'settlement'): ?>
-        <div class="whatsapp-section">
-            <h3>📱 Langkah Terakhir</h3>
-            <p>Setelah melakukan transfer, klik tombol di bawah untuk konfirmasi pembayaran via WhatsApp:</p>
-            <br>
-            <a href="<?= $wa_link ?>" target="_blank" class="whatsapp-btn">
-                📱 Konfirmasi via WhatsApp
-            </a>
-            <p style="margin-top: 1rem; color: #666; font-size: 0.9rem;">
-                *Jangan lupa sertakan screenshot bukti transfer
-            </p>
-        </div>
         <?php endif; ?>
 
         <div style="text-align: center;">

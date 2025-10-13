@@ -1,6 +1,6 @@
 <?php
 require_once 'config/database.php';
-require_once 'config/midtrans_config.php'; // TAMBAHAN BARU
+require_once 'config/midtrans_config.php';
 
 // Get cart items
 if (isLoggedIn()) {
@@ -45,16 +45,29 @@ if (isLoggedIn()) {
 }
 
 $error = '';
-$success = '';
 
+// Handle AJAX form submission
 if ($_POST) {
-    $nama = trim($_POST['nama']);
-    $email = trim($_POST['email']);
-    $telepon = trim($_POST['telepon']);
-    $alamat = trim($_POST['alamat']);
-    $notes = trim($_POST['notes']);
+    // CRITICAL: Clean output buffer untuk hindari output sebelum JSON
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    $nama = trim($_POST['nama'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $telepon = trim($_POST['telepon'] ?? '');
+    $alamat = trim($_POST['alamat'] ?? '');
+    $notes = trim($_POST['notes'] ?? '');
     
     if (empty($nama) || empty($email) || empty($telepon) || empty($alamat)) {
+        if (isset($_POST['ajax']) && $_POST['ajax'] == 1) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Semua field yang wajib harus diisi'
+            ]);
+            exit;
+        }
         $error = 'Semua field yang wajib harus diisi';
     } else {
         // Store pending order data in session
@@ -75,7 +88,7 @@ if ($_POST) {
         $temp_order_id = 'temp_' . uniqid();
         $_SESSION['pending_temp_order_id'] = $temp_order_id;
         
-        // Return JSON untuk handle Midtrans
+        // Return JSON for AJAX request
         if (isset($_POST['ajax']) && $_POST['ajax'] == 1) {
             header('Content-Type: application/json');
             echo json_encode([
@@ -85,10 +98,6 @@ if ($_POST) {
             ]);
             exit;
         }
-        
-        $_SESSION['message'] = 'Data pesanan tersimpan. Silakan lanjutkan pembayaran.';
-        $_SESSION['message_type'] = 'success';
-        redirect('checkout.php'); // Atau halaman lain jika diperlukan
     }
 }
 ?>
@@ -514,147 +523,266 @@ if ($_POST) {
     <script src="<?php echo MIDTRANS_SNAP_URL; ?>" data-client-key="<?php echo MIDTRANS_CLIENT_KEY; ?>"></script>
     
     <script>
-    let tempOrderId = null;
+    // Verify Midtrans Snap loaded
+    if (typeof window.snap === 'undefined') {
+        console.error('CRITICAL: Midtrans Snap not loaded!');
+        alert('Error: Payment gateway tidak tersedia. Silakan refresh halaman.');
+    } else {
+        console.log('Midtrans Snap loaded successfully');
+    }
     
+    let tempOrderId = null;
+
     document.getElementById('checkoutForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
         const payButton = document.getElementById('payButton');
         const loading = document.getElementById('loading');
         
-        // Disable button
+        // Disable button and show loading
         payButton.disabled = true;
         loading.classList.add('active');
         
-        // Ambil form data
+        // Get form data
         const formData = new FormData(this);
         formData.append('ajax', '1');
         
-        // Submit form untuk store pending order
-        fetch('checkout.php', {
+        // Step 1: Submit form to store pending order in session
+        fetch('utils/checkout_ajax.php', {  // ← GANTI KE FILE BARU
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                tempOrderId = data.order_id;
-                // Request snap token dari Midtrans
-                const midtransData = new FormData();
-                midtransData.append('order_id', data.order_id);
-                
-                return fetch('midtrans_payment.php', {
-                    method: 'POST',
-                    body: midtransData
-                })
-                .then(response => response.json())
-                .then(midtransResult => {
-                    return {
-                        order_id: data.order_id,
-                        ...midtransResult
-                    };
-                });
-            } else {
-                throw new Error(data.message || 'Gagal memproses pesanan');
-            }
+        .then(response => {
+            // Debug: Log raw response
+            return response.text().then(text => {
+                console.log('Raw response:', text);
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON Parse Error:', e);
+                    console.error('Response text:', text);
+                    throw new Error('Server mengembalikan response yang tidak valid. Cek console untuk detail.');
+                }
+            });
         })
         .then(data => {
-            if (data.status === 'success') {
-                // Trigger Midtrans Snap popup
-                snap.pay(data.snap_token, {
-                    onSuccess: function(result) {
-                        console.log('Payment success:', result);
-                        // Update status di database (akan create order)
-                        updatePaymentStatus(tempOrderId, 'settlement', result.transaction_id);
-                    },
-                    onPending: function(result) {
-                        console.log('Payment pending:', result);
-                        // Update status di database (akan create order dengan pending)
-                        updatePaymentStatus(tempOrderId, 'pending', result.transaction_id);
-                    },
-                    onError: function(result) {
-                        console.log('Payment error:', result);
-                        alert('Pembayaran gagal! Silakan coba lagi.');
-                        // Clear pending order
-                        clearPendingOrder(tempOrderId);
-                        payButton.disabled = false;
-                        loading.classList.remove('active');
-                    },
-                    onClose: function() {
-                        console.log('Payment popup closed');
-                        // User tutup popup tanpa bayar
-                        // Clear pending order
-                        clearPendingOrder(tempOrderId);
-                        alert('Pembayaran dibatalkan. Pesanan tidak diproses.');
-                        payButton.disabled = false;
-                        loading.classList.remove('active');
-                    }
-                });
-            } else {
-                throw new Error(data.message || 'Gagal memproses pembayaran');
+            if (data.status !== 'success') {
+                throw new Error(data.message || 'Gagal menyimpan data pesanan');
             }
+            
+            tempOrderId = data.order_id;
+            console.log('Pending order created:', tempOrderId);
+            
+            // Step 2: Request snap token from Midtrans
+            const midtransData = new FormData();
+            midtransData.append('order_id', tempOrderId);
+            
+            return fetch('utils/midtrans_payment.php', {
+                method: 'POST',
+                body: midtransData
+            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success' || !data.snap_token) {
+                throw new Error(data.message || 'Gagal mendapatkan token pembayaran');
+            }
+            
+            console.log('Snap token received:', data.snap_token);
+            
+            // Verify snap is available
+            if (typeof window.snap === 'undefined') {
+                throw new Error('Midtrans Snap belum di-load. Silakan refresh halaman.');
+            }
+            
+            // Step 3: Open Midtrans Snap popup
+            console.log('Opening Midtrans Snap popup...');
+            
+            window.snap.pay(data.snap_token, {
+                onSuccess: function(result) {
+                    console.log('=== MIDTRANS CALLBACK: SUCCESS ===');
+                    console.log('Result:', JSON.stringify(result, null, 2));
+                    
+                    const transactionId = result.transaction_id || result.order_id || 'unknown';
+                    console.log('Calling createRealOrder with:', tempOrderId, 'settlement', transactionId);
+                    
+                    createRealOrder(tempOrderId, 'settlement', transactionId);
+                },
+                
+                onPending: function(result) {
+                    console.log('=== MIDTRANS CALLBACK: PENDING ===');
+                    console.log('Result:', JSON.stringify(result, null, 2));
+                    
+                    const transactionId = result.transaction_id || result.order_id || 'unknown';
+                    console.log('Calling createRealOrder with:', tempOrderId, 'pending', transactionId);
+                    
+                    createRealOrder(tempOrderId, 'pending', transactionId);
+                },
+                
+                onError: function(result) {
+                    console.error('=== MIDTRANS CALLBACK: ERROR ===');
+                    console.error('Result:', JSON.stringify(result, null, 2));
+                    
+                    alert('Pembayaran gagal!\n\n' + (result.status_message || 'Silakan coba lagi.'));
+                    clearPendingOrder(tempOrderId);
+                    resetForm();
+                },
+                
+                onClose: function() {
+                    console.log('=== MIDTRANS CALLBACK: CLOSED ===');
+                    console.log('User closed the popup without completing payment');
+                    
+                    // Check payment status sebagai fallback
+                    console.log('Checking payment status as fallback...');
+                    checkPaymentStatus(tempOrderId);
+                }
+            });
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error: ' + error.message);
-            // Clear pending jika ada error setelah store pending
+            alert('Terjadi kesalahan: ' + error.message);
+            
             if (tempOrderId) {
                 clearPendingOrder(tempOrderId);
             }
-            payButton.disabled = false;
-            loading.classList.remove('active');
+            resetForm();
         });
     });
-    
-    // Function untuk update payment status (akan create order jika temp)
-    function updatePaymentStatus(orderId, transactionStatus, transactionId) {
+
+    // Create real order from pending data
+    function createRealOrder(tempId, transactionStatus, transactionId) {
+        console.log('=== CREATE REAL ORDER ===');
+        console.log('Temp ID:', tempId);
+        console.log('Transaction Status:', transactionStatus);
+        console.log('Transaction ID:', transactionId);
+        
+        if (!tempId) {
+            console.error('ERROR: tempId is empty!');
+            alert('Error: Order ID kosong');
+            return;
+        }
+        
         const formData = new FormData();
-        formData.append('order_id', orderId);
+        formData.append('order_id', tempId);
         formData.append('transaction_status', transactionStatus);
         formData.append('transaction_id', transactionId || '');
         
-        fetch('payment_callback.php', {
+        console.log('Sending to payment_callback.php...');
+        
+        fetch('utils/payment_callback.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.text();
+        })
+        .then(text => {
+            console.log('Raw response:', text);
+            try {
+                const data = JSON.parse(text);
+                console.log('Parsed response:', data);
+                
+                if (data.status === 'success' && data.order_id) {
+                    console.log('SUCCESS! Redirecting to order_confirmation.php?id=' + data.order_id);
+                    window.location.href = 'order_confirmation.php?id=' + data.order_id;
+                } else {
+                    throw new Error(data.message || 'Gagal membuat pesanan');
+                }
+            } catch (e) {
+                console.error('JSON Parse Error:', e);
+                console.error('Response text:', text);
+                throw e;
+            }
+        })
+        .catch(error => {
+            console.error('Error creating order:', error);
+            alert('Pembayaran berhasil, tapi terjadi kesalahan sistem.\n\nOrder ID: ' + tempId + '\n\nSilakan hubungi admin dengan ID tersebut.');
+            // Jangan redirect, biarkan user screenshot error
+        });
+    }
+
+    // Clear pending order from session
+    function clearPendingOrder(tempId) {
+        if (!tempId) return;
+        
+        console.log('Clearing pending order:', tempId);
+        
+        const formData = new FormData();
+        formData.append('order_id', tempId);
+        formData.append('action', 'cancel');
+        
+        fetch('utils/payment_callback.php', {
             method: 'POST',
             body: formData
         })
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'success') {
-                window.location.href = 'order_confirmation.php?id=' + data.order_id;
-            } else {
-                console.error('Failed to update payment status:', data.message);
-                // Tetap redirect meskipun update gagal, gunakan order_id dari response jika ada
-                const redirectId = data.order_id || orderId.replace('temp_', '');
-                window.location.href = 'order_confirmation.php?id=' + redirectId;
-            }
-        })
-        .catch(error => {
-            console.error('Error updating payment status:', error);
-            // Jika gagal create order, kembali ke cart
-            window.location.href = 'cart.php';
-        });
-    }
-    
-    // Function untuk clear pending order
-    function clearPendingOrder(orderId) {
-        if (!orderId) return;
-        
-        const cancelData = new FormData();
-        cancelData.append('order_id', orderId);
-        cancelData.append('action', 'cancel');
-        
-        fetch('payment_callback.php', {
-            method: 'POST',
-            body: cancelData
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Pending cleared:', data);
+            console.log('Pending order cleared:', data);
         })
         .catch(error => {
             console.error('Error clearing pending order:', error);
-            // Ignore error, since it's just cleanup
         });
+    }
+
+    // Check payment status (fallback when popup closed)
+    function checkPaymentStatus(tempId) {
+        console.log('=== CHECK PAYMENT STATUS ===');
+        console.log('Checking status for:', tempId);
+        
+        const formData = new FormData();
+        formData.append('temp_order_id', tempId);
+        
+        fetch('utils/check_payment_status.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Payment status response:', data);
+            
+            if (data.status === 'success') {
+                // Payment successful, redirect to confirmation
+                alert('Pembayaran berhasil! Anda akan diarahkan ke halaman konfirmasi.');
+                window.location.href = 'order_confirmation.php?id=' + data.order_id;
+            } else if (data.status === 'failed') {
+                // Payment failed
+                alert('Pembayaran gagal atau dibatalkan.\n\nStatus: ' + data.transaction_status);
+                clearPendingOrder(tempId);
+                resetForm();
+            } else {
+                // Still pending or error
+                const retry = confirm('Status pembayaran: ' + (data.transaction_status || 'Tidak diketahui') + 
+                    '\n\nApakah Anda ingin:\n- OK: Cek status lagi\n- Cancel: Batalkan pesanan');
+                
+                if (retry) {
+                    // Wait 3 seconds then check again
+                    setTimeout(() => checkPaymentStatus(tempId), 3000);
+                } else {
+                    clearPendingOrder(tempId);
+                    resetForm();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking payment status:', error);
+            
+            const retry = confirm('Gagal mengecek status pembayaran.\n\nApakah Anda ingin coba lagi?');
+            if (retry) {
+                setTimeout(() => checkPaymentStatus(tempId), 3000);
+            } else {
+                resetForm();
+            }
+        });
+    }
+
+    // Reset form state
+    function resetForm() {
+        const payButton = document.getElementById('payButton');
+        const loading = document.getElementById('loading');
+        
+        payButton.disabled = false;
+        loading.classList.remove('active');
     }
     </script>
 </body>

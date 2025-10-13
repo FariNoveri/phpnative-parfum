@@ -9,8 +9,12 @@ $max_price = $_GET['max_price'] ?? '';
 $min_rating = $_GET['min_rating'] ?? '';
 $sort_by = $_GET['sort_by'] ?? 'newest';
 $brands = $_GET['brands'] ?? [];
-$volume = $_GET['volume'] ?? '';
 $discount_only = isset($_GET['discount_only']);
+$seasons = $_GET['seasons'] ?? [];
+$occasions = $_GET['occasions'] ?? [];
+$sillage = $_GET['sillage'] ?? '';
+$min_longevity = $_GET['min_longevity'] ?? '';
+$max_longevity = $_GET['max_longevity'] ?? '';
 
 // Advanced SQL query building
 $sql = "SELECT p.*, 
@@ -34,9 +38,9 @@ $params = [];
 
 // Search functionality
 if ($search) {
-    $sql .= " AND (p.nama_parfum LIKE ? OR p.brand LIKE ? OR p.tags LIKE ? OR p.scent_notes LIKE ?)";
+    $sql .= " AND (p.nama_parfum LIKE ? OR p.brand LIKE ? OR p.tags LIKE ? OR p.scent_notes LIKE ? OR p.season LIKE ? OR p.occasion LIKE ? OR p.sillage LIKE ?)";
     $search_term = "%$search%";
-    $params = array_merge($params, [$search_term, $search_term, $search_term, $search_term]);
+    $params = array_merge($params, [$search_term, $search_term, $search_term, $search_term, $search_term, $search_term, $search_term]);
 }
 
 // Category filter
@@ -68,15 +72,45 @@ if (!empty($brands)) {
     $params = array_merge($params, $brands);
 }
 
-// Volume filter
-if ($volume) {
-    $sql .= " AND p.volume_ml = ?";
-    $params[] = $volume;
-}
-
 // Discount only filter
 if ($discount_only) {
     $sql .= " AND p.discount_percentage > 0";
+}
+
+// Season filter (multiple)
+if (!empty($seasons)) {
+    $sql .= " AND (0";
+    foreach ($seasons as $season) {
+        $sql .= " OR FIND_IN_SET(?, p.season)";
+        $params[] = $season;
+    }
+    $sql .= ")";
+}
+
+// Occasion filter (multiple)
+if (!empty($occasions)) {
+    $sql .= " AND (0";
+    foreach ($occasions as $occasion) {
+        $sql .= " OR FIND_IN_SET(?, p.occasion)";
+        $params[] = $occasion;
+    }
+    $sql .= ")";
+}
+
+// Sillage filter
+if ($sillage) {
+    $sql .= " AND p.sillage = ?";
+    $params[] = $sillage;
+}
+
+// Longevity range filter
+if ($min_longevity) {
+    $sql .= " AND p.longevity_hours >= ?";
+    $params[] = $min_longevity;
+}
+if ($max_longevity) {
+    $sql .= " AND p.longevity_hours <= ?";
+    $params[] = $max_longevity;
 }
 
 // Group by for JOIN
@@ -115,6 +149,25 @@ $brand_stmt = $pdo->prepare($brand_sql);
 $brand_stmt->execute();
 $available_brands = $brand_stmt->fetchAll(PDO::FETCH_COLUMN);
 
+// Get seasons and occasions for filters
+$season_sql = "SELECT DISTINCT season FROM products";
+$season_stmt = $pdo->prepare($season_sql);
+$season_stmt->execute();
+$all_seasons_raw = $season_stmt->fetchAll(PDO::FETCH_COLUMN);
+$all_seasons = array_unique(array_merge(...array_map(function($s) { return explode(',', $s); }, $all_seasons_raw)));
+
+$occasion_sql = "SELECT DISTINCT occasion FROM products";
+$occasion_stmt = $pdo->prepare($occasion_sql);
+$occasion_stmt->execute();
+$all_occasions_raw = $occasion_stmt->fetchAll(PDO::FETCH_COLUMN);
+$all_occasions = array_unique(array_merge(...array_map(function($o) { return explode(',', $o); }, $all_occasions_raw)));
+
+// Get sillage options
+$sillage_sql = "SELECT DISTINCT sillage FROM products ORDER BY FIELD(sillage, 'intimate', 'moderate', 'strong', 'enormous')";
+$sillage_stmt = $pdo->prepare($sillage_sql);
+$sillage_stmt->execute();
+$available_sillage = $sillage_stmt->fetchAll(PDO::FETCH_COLUMN);
+
 // Get cart count
 $cart_count = 0;
 if (isLoggedIn()) {
@@ -142,7 +195,7 @@ function renderStars($rating, $size = 'sm') {
     $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
     
     $stars = str_repeat('⭐', $full_stars);
-    if ($half_star) $stars .= '⭐'; // Could use half star icon
+    if ($half_star) $stars .= '⭐';
     $stars .= str_repeat('☆', $empty_stars);
     
     return $stars;
@@ -155,7 +208,7 @@ function renderStars($rating, $size = 'sm') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toko Parfum Refill Premium - Kualitas Original, Harga Terjangkau</title>
-    <meta name="description" content="Jual parfum refill berkualitas dengan aroma persis seperti original. Inspired by Tom Ford, Dior, Chanel, dan brand premium lainnya.">
+    <meta name="description" content="Jual parfum refill berkualitas dengan aroma persis seperti original. Tom Ford, Dior, Chanel, dan brand premium lainnya.">
     <style>
         * {
             margin: 0;
@@ -512,14 +565,6 @@ function renderStars($rating, $size = 'sm') {
             padding: 1.5rem;
         }
         
-        .product-brand {
-            color: #666 !important;
-            font-size: 0.85rem;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
         .product-name {
             font-size: 1.3rem;
             font-weight: 600;
@@ -613,17 +658,20 @@ function renderStars($rating, $size = 'sm') {
             transform: none;
         }
         
-        .quick-view {
+        .view-detail {
             background: #667eea;
             color: white;
             border: none;
-            padding: 1rem;
+            padding: 1rem 1.5rem;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
         }
         
-        .quick-view:hover {
+        .view-detail:hover {
             background: #5a67d8;
         }
         
@@ -815,7 +863,7 @@ function renderStars($rating, $size = 'sm') {
             <form class="search-form" method="GET" action="">
                 <div class="search-row">
                     <input type="text" name="search" class="search-input" 
-                           placeholder="Cari parfum, brand, atau aroma (contoh: Inspired by Tom Ford, woody, fresh)..." 
+                           placeholder="Cari parfum, brand, aroma, musim, kesempatan (contoh: Tom Ford, woody, fresh, spring, evening)..." 
                            value="<?= htmlspecialchars($search) ?>">
                     <button type="submit" class="btn">🔍 Cari</button>
                 </div>
@@ -849,16 +897,6 @@ function renderStars($rating, $size = 'sm') {
                         </select>
                     </div>
                     
-                    <div class="filter-group">
-                        <label>Volume:</label>
-                        <select name="volume" class="filter-select">
-                            <option value="">Semua</option>
-                            <option value="30" <?= $volume == '30' ? 'selected' : '' ?>>30ml</option>
-                            <option value="50" <?= $volume == '50' ? 'selected' : '' ?>>50ml</option>
-                            <option value="100" <?= $volume == '100' ? 'selected' : '' ?>>100ml</option>
-                        </select>
-                    </div>
-                    
                     <label class="filter-checkbox">
                         <input type="checkbox" name="discount_only" <?= $discount_only ? 'checked' : '' ?>>
                         <span>Hanya Diskon</span>
@@ -873,12 +911,59 @@ function renderStars($rating, $size = 'sm') {
                             <label class="filter-checkbox">
                                 <input type="checkbox" name="brands[]" value="<?= $brand ?>" 
                                        <?= in_array($brand, $brands) ? 'checked' : '' ?>>
-                                <span>Inspired by <?= $brand ?></span>
+                                <span><?= $brand ?></span>
                             </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
                 <?php endif; ?>
+                
+                <div class="search-row">
+                    <div class="filter-group">
+                        <label>Musim:</label>
+                        <?php 
+                        $season_options = ['spring' => 'Musim Semi', 'summer' => 'Musim Panas', 'fall' => 'Musim Gugur', 'winter' => 'Musim Dingin'];
+                        foreach ($season_options as $key => $label): ?>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" name="seasons[]" value="<?= $key ?>" 
+                                       <?= in_array($key, $seasons) ? 'checked' : '' ?>>
+                                <span><?= $label ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Kesempatan:</label>
+                        <?php 
+                        $occasion_options = ['casual' => 'Santai', 'office' => 'Kantor', 'evening' => 'Malam', 'special' => 'Spesial'];
+                        foreach ($occasion_options as $key => $label): ?>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" name="occasions[]" value="<?= $key ?>" 
+                                       <?= in_array($key, $occasions) ? 'checked' : '' ?>>
+                                <span><?= $label ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Sillage:</label>
+                        <select name="sillage" class="filter-select">
+                            <option value="">Semua</option>
+                            <?php foreach ($available_sillage as $sil): ?>
+                                <option value="<?= $sil ?>" <?= $sillage == $sil ? 'selected' : '' ?>><?= ucfirst($sil) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Ketahanan:</label>
+                        <input type="number" name="min_longevity" class="filter-input" 
+                               placeholder="Min jam" value="<?= htmlspecialchars($min_longevity) ?>" style="width: 80px;">
+                        <span>-</span>
+                        <input type="number" name="max_longevity" class="filter-input" 
+                               placeholder="Max jam" value="<?= htmlspecialchars($max_longevity) ?>" style="width: 80px;">
+                    </div>
+                </div>
                 
                 <div class="search-row">
                     <a href="index.php" class="btn btn-secondary">Reset Filter</a>
@@ -888,11 +973,14 @@ function renderStars($rating, $size = 'sm') {
             <div class="trending-searches">
                 <div class="trending-title">🔥 Pencarian Trending:</div>
                 <div class="trending-tags">
-                    <a href="?search=tom+ford" class="trending-tag">Inspired by Tom Ford</a>
-                    <a href="?search=dior" class="trending-tag">Inspired by Dior</a>
-                    <a href="?search=chanel" class="trending-tag">Inspired by Chanel</a>
+                    <a href="?search=tom+ford" class="trending-tag">Tom Ford</a>
+                    <a href="?search=dior" class="trending-tag">Dior</a>
+                    <a href="?search=chanel" class="trending-tag">Chanel</a>
                     <a href="?search=woody" class="trending-tag">Woody</a>
                     <a href="?search=fresh" class="trending-tag">Fresh</a>
+                    <a href="?search=oriental" class="trending-tag">Oriental</a>
+                    <a href="?search=spring" class="trending-tag">Musim Semi</a>
+                    <a href="?search=evening" class="trending-tag">Malam Hari</a>
                     <a href="?discount_only=1" class="trending-tag">Sedang Diskon</a>
                 </div>
             </div>
@@ -948,7 +1036,7 @@ function renderStars($rating, $size = 'sm') {
                                 <div class="product-image">
                                     <?php if ($primary_image): ?>
                                         <img src="<?= htmlspecialchars($primary_image) ?>" 
-                                             alt="Inspired by <?= htmlspecialchars($product['brand']) ?> <?= htmlspecialchars($product['nama_parfum']) ?>"
+                                             alt="<?= htmlspecialchars($product['nama_parfum']) ?>"
                                              loading="lazy"
                                              onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect fill=%22%23f8f9fa%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2240%22>🧴</text></svg>';">
                                     <?php else: ?>
@@ -967,14 +1055,13 @@ function renderStars($rating, $size = 'sm') {
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <button class="wishlist-btn" onclick="toggleWishlist(<?= $product['id'] ?>)">
+                                    <button class="wishlist-btn" onclick="event.preventDefault(); toggleWishlist(<?= $product['id'] ?>)">
                                         ♡
                                     </button>
                                 </div>
                             </a>
                             
                             <div class="product-info">
-                                <div class="product-brand">Inspired by <?= htmlspecialchars($product['brand']) ?> • <?= $product['volume_ml'] ?>ml</div>
                                 <h3 class="product-name"><?= htmlspecialchars($product['nama_parfum']) ?></h3>
                                 
                                 <div class="product-rating">
@@ -992,21 +1079,13 @@ function renderStars($rating, $size = 'sm') {
                                 
                                 <div class="product-meta">
                                     <span>📦 <?= $product['total_sold'] ?> terjual</span>
-                                    <span>👁️ <?= $product['views_today'] ?> dilihat hari ini</span>
+                                    <span>👁️ <?= $product['views_today'] ?> dilihat</span>
                                 </div>
                                 
                                 <div class="product-actions">
-                                    <?php if ($product['stok'] > 0): ?>
-                                        <form method="POST" action="add_to_cart.php" style="flex: 1;">
-                                            <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
-                                            <button type="submit" class="add-to-cart">
-                                                🛒 Tambah ke Keranjang
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <button class="add-to-cart" disabled>Stok Habis</button>
-                                    <?php endif; ?>
-                                    <button class="quick-view" onclick="quickView(<?= $product['id'] ?>)">👁️</button>
+                                    <a href="product_detail.php?id=<?= $product['id'] ?>" class="view-detail">
+                                        Lihat Detail
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -1059,18 +1138,12 @@ function renderStars($rating, $size = 'sm') {
         }
         
         function toggleWishlist(productId) {
-            // Implement wishlist functionality
             alert('Fitur wishlist akan segera tersedia!');
-        }
-        
-        function quickView(productId) {
-            // Implement quick view modal
-            alert('Quick view untuk produk ID: ' + productId);
         }
         
         // Auto-submit form on filter change
         document.addEventListener('DOMContentLoaded', function() {
-            const filterInputs = document.querySelectorAll('select[name="kategori"], select[name="min_rating"], select[name="volume"], input[name="discount_only"]');
+            const filterInputs = document.querySelectorAll('select[name="kategori"], select[name="min_rating"], select[name="sillage"], input[name="min_longevity"], input[name="max_longevity"], input[name="discount_only"]');
             filterInputs.forEach(input => {
                 input.addEventListener('change', function() {
                     this.form.submit();
@@ -1080,6 +1153,21 @@ function renderStars($rating, $size = 'sm') {
             // Brand checkboxes
             const brandCheckboxes = document.querySelectorAll('input[name="brands[]"]');
             brandCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    setTimeout(() => this.form.submit(), 100);
+                });
+            });
+
+            // Season and occasion checkboxes
+            const seasonCheckboxes = document.querySelectorAll('input[name="seasons[]"]');
+            seasonCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    setTimeout(() => this.form.submit(), 100);
+                });
+            });
+
+            const occasionCheckboxes = document.querySelectorAll('input[name="occasions[]"]');
+            occasionCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
                     setTimeout(() => this.form.submit(), 100);
                 });

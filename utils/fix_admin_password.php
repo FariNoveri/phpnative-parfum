@@ -2,7 +2,7 @@
 // fix_admin_password.php
 // Jalankan file ini di browser untuk fix password admin
 
-require_once 'config/database.php';
+require_once '../config/database.php';
 
 // Generate password hash yang benar
 $password = 'admin123';

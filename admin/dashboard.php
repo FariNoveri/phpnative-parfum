@@ -14,21 +14,57 @@ $stmt = $pdo->prepare("SELECT * FROM products WHERE stok <= 5 ORDER BY stok ASC 
 $stmt->execute();
 $low_stock = $stmt->fetchAll();
 
+// Get total reviews and pending reviews
+$stmt_reviews = $pdo->prepare("SELECT COUNT(*) as total FROM product_reviews WHERE status = 'approved'");
+$stmt_reviews->execute();
+$total_reviews = $stmt_reviews->fetchColumn() ?? 0;
+
+$stmt_pending = $pdo->prepare("SELECT COUNT(*) as pending FROM product_reviews WHERE status = 'pending'");
+$stmt_pending->execute();
+$pending_reviews = $stmt_pending->fetchColumn() ?? 0;
+
 // Get sales data by category for chart
-$stmt = $pdo->prepare("SELECT kategori, COUNT(*) as count FROM products GROUP BY kategori");
+$stmt = $pdo->prepare("
+    SELECT p.kategori, SUM(oi.jumlah * oi.harga) as total_sales 
+    FROM order_items oi 
+    JOIN products p ON oi.product_id = p.id 
+    JOIN orders o ON oi.order_id = o.id 
+    WHERE o.status != 'cancelled' 
+    GROUP BY p.kategori
+");
 $stmt->execute();
 $category_sales = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-// Get order trend (last 7 days)
+// Get top products for chart
+$stmt = $pdo->prepare("
+    SELECT p.nama_parfum, SUM(oi.jumlah) as total_sold 
+    FROM order_items oi 
+    JOIN products p ON oi.product_id = p.id 
+    JOIN orders o ON oi.order_id = o.id 
+    WHERE o.status != 'cancelled' 
+    GROUP BY p.id 
+    ORDER BY total_sold DESC 
+    LIMIT 5
+");
+$stmt->execute();
+$top_products = $stmt->fetchAll();
+$top_labels = [];
+$top_data = [];
+foreach ($top_products as $tp) {
+    $top_labels[] = $tp['nama_parfum'];
+    $top_data[] = $tp['total_sold'];
+}
+
+// Get revenue trend (last 7 days)
 $order_trend = [];
 $today = new DateTime();
 for ($i = 6; $i >= 0; $i--) {
     $date = clone $today;
     $date->modify("-$i days");
     $date_str = $date->format('Y-m-d');
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = ?");
+    $stmt = $pdo->prepare("SELECT SUM(total_harga) FROM orders WHERE DATE(created_at) = ? AND status != 'cancelled'");
     $stmt->execute([$date_str]);
-    $order_trend[$date_str] = $stmt->fetchColumn();
+    $order_trend[$date_str] = $stmt->fetchColumn() ?? 0;
 }
 ?>
 
@@ -403,6 +439,12 @@ for ($i = 6; $i >= 0; $i--) {
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="reviews.php" class="nav-link">
+                            <span class="nav-icon">⭐</span>
+                            Kelola Review
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="users.php" class="nav-link">
                             <span class="nav-icon">👥</span>
                             Kelola User
@@ -468,6 +510,18 @@ for ($i = 6; $i >= 0; $i--) {
                 </div>
                 
                 <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-number"><?= $total_reviews ?></div>
+                    <div class="stat-label">Total Review</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-number"><?= $pending_reviews ?></div>
+                    <div class="stat-label">Review Pending</div>
+                </div>
+                
+                <div class="stat-card">
                     <div class="stat-icon">💰</div>
                     <div class="stat-number"><?= formatRupiah($stats['total_revenue']) ?></div>
                     <div class="stat-label">Total Revenue</div>
@@ -491,6 +545,9 @@ for ($i = 6; $i >= 0; $i--) {
                         </div>
                         <div class="chart-container">
                             <canvas id="orderTrendChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="topProductsChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -530,7 +587,7 @@ for ($i = 6; $i >= 0; $i--) {
 
                 <!-- Low Stock Alert -->
                 <div class="section-card">
-                    <div class="section-header">⚠️ Stok Menipis</div>
+                    <div class="section-header">⚠ Stok Menipis</div>
                     <div class="section-content">
                         <?php if (empty($low_stock)): ?>
                             <p style="text-align: center; color: #666; padding: 2rem;">
@@ -548,7 +605,7 @@ for ($i = 6; $i >= 0; $i--) {
                             <?php endforeach; ?>
                             
                             <div class="alert alert-warning" style="margin-top: 1rem;">
-                                ⚠️ <strong>Perhatian:</strong> Ada produk dengan stok rendah yang perlu direstok segera.
+                                ⚠ <strong>Perhatian:</strong> Ada produk dengan stok rendah yang perlu direstok segera.
                             </div>
                         <?php endif; ?>
                         
@@ -567,6 +624,7 @@ for ($i = 6; $i >= 0; $i--) {
                         <div class="quick-actions">
                             <a href="products.php?action=add" class="btn btn-success">➕ Tambah Produk</a>
                             <a href="orders.php?status=pending" class="btn btn-warning">⏳ Cek Pesanan Pending</a>
+                            <a href="reviews.php" class="btn btn-success">⭐ Kelola Review</a>
                             <a href="reports.php" class="btn">📊 Lihat Laporan</a>
                             <a href="../index.php" target="_blank" class="btn">🌐 Preview Website</a>
                         </div>
@@ -597,19 +655,26 @@ for ($i = 6; $i >= 0; $i--) {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'top' },
-                    title: { display: true, text: 'Distribusi Produk per Kategori' }
+                    title: { display: true, text: 'Penjualan per Kategori' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Rp ' + context.parsed.toLocaleString();
+                            }
+                        }
+                    }
                 }
             }
         });
 
-        // Chart.js for Order Trend
+        // Chart.js for Revenue Trend
         const ctxOrderTrend = document.getElementById('orderTrendChart').getContext('2d');
         new Chart(ctxOrderTrend, {
             type: 'line',
             data: {
                 labels: <?= json_encode(array_keys($order_trend)) ?>,
                 datasets: [{
-                    label: 'Jumlah Pesanan',
+                    label: 'Pendapatan Harian',
                     data: <?= json_encode(array_values($order_trend)) ?>,
                     borderColor: '#36A2EB',
                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
@@ -622,10 +687,44 @@ for ($i = 6; $i >= 0; $i--) {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'top' },
-                    title: { display: true, text: 'Tren Pesanan (7 Hari Terakhir)' }
+                    title: { display: true, text: 'Tren Pendapatan (7 Hari Terakhir)' }
                 },
                 scales: {
-                    y: { beginAtZero: true }
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rp ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Chart.js for Top Products
+        const ctxTop = document.getElementById('topProductsChart').getContext('2d');
+        new Chart(ctxTop, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($top_labels) ?>,
+                datasets: [{
+                    label: 'Unit Terjual',
+                    data: <?= json_encode($top_data) ?>,
+                    backgroundColor: '#FF6384'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Top 5 Produk Terlaris' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
         });
