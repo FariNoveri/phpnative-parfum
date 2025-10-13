@@ -48,17 +48,19 @@ $order_items = $stmt->fetchAll();
 
 // WhatsApp message
 $wa_number = "6281234567890"; // Ganti dengan nomor WA toko
-$wa_message = "Halo, saya ingin konfirmasi pembayaran untuk:\n\n";
+$wa_message = "Halo Admin Parfum Premium,\n\nSaya ingin konfirmasi pembayaran untuk pesanan berikut:\n\n";
 $wa_message .= "*ID Pesanan:* {$order['id']}\n";
-$wa_message .= "*Nama:* {$order['nama_customer']}\n";
-$wa_message .= "*Total:* " . formatRupiah($order['total_harga']) . "\n\n";
-$wa_message .= "*Detail Pesanan:*\n";
-
+$wa_message .= "*Nama Customer:* {$order['nama_customer']}\n";
+$wa_message .= "*Email:* {$order['email_customer']}\n";
+$wa_message .= "*Telepon:* {$order['telepon_customer']}\n";
+$wa_message .= "*Total Bayar:* " . formatRupiah($order['total_harga']) . "\n\n";
+$wa_message .= "*Detail Items:*\n";
 foreach ($order_items as $item) {
-    $wa_message .= "• {$item['nama_parfum']} ({$item['brand']}) x{$item['jumlah']} = " . formatRupiah($item['harga'] * $item['jumlah']) . "\n";
+    $wa_message .= "• {$item['nama_parfum']} ({$item['brand']}) x {$item['jumlah']} = " . formatRupiah($item['harga'] * $item['jumlah']) . "\n";
 }
+$wa_message .= "\n*Alamat Pengiriman:*\n{$order['alamat_customer']}\n\n";
+$wa_message .= "Terlampir screenshot halaman konfirmasi pesanan sebagai bukti. Mohon proses pesanan saya secepatnya. Terima kasih!";
 
-$wa_message .= "\nSaya akan segera mengirim bukti pembayaran. Terima kasih!";
 $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
 
 // Status display logic
@@ -381,7 +383,58 @@ $status_color = match($payment_status) {
             font-size: 0.85rem;
             display: none; /* Hide by default, enable for debugging */
         }
+        
+        .print-section {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        .print-btn {
+            background: #3498db;
+            color: white;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+            margin-right: 1rem;
+        }
+        
+        .print-btn:hover {
+            background: #2980b9;
+        }
+        
+        .ss-instruction {
+            background: #e8f5e8;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white;
+            }
+            .container {
+                max-width: 100%;
+                padding: 1rem;
+            }
+            .order-card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
     </style>
+    <script>
+        function printPage() {
+            window.print();
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -486,12 +539,15 @@ $status_color = match($payment_status) {
             </div>
             
             <div class="whatsapp-section">
-                <h3>📱 Butuh Bantuan?</h3>
-                <p>Hubungi kami via WhatsApp untuk konfirmasi pembayaran:</p>
+                <h3>📱 Konfirmasi Pembayaran via WhatsApp</h3>
+                <p>Klik tombol di bawah untuk mengirim konfirmasi otomatis ke admin kami:</p>
                 <br>
                 <a href="<?= $wa_link ?>" target="_blank" class="whatsapp-btn">
-                    📱 Hubungi via WhatsApp
+                    📱 Kirim Konfirmasi via WhatsApp
                 </a>
+                <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                    *Pastikan Anda melampirkan bukti transfer saat chat.
+                </p>
             </div>
         <?php else: ?>
             <div class="warning">
@@ -501,7 +557,28 @@ $status_color = match($payment_status) {
             </div>
         <?php endif; ?>
 
-        <div style="text-align: center;">
+        <!-- Instruksi SS Halaman ke WA -->
+        <div class="ss-instruction no-print">
+            <h3>📸 Cara Konfirmasi: Screenshot Halaman Ini!</h3>
+            <p><strong>Langkah-langkah:</strong></p>
+            <ol>
+                <li>Screenshot seluruh halaman ini (gunakan tombol Print Screen di keyboard atau tool snipping di HP/PC).</li>
+                <li>Buka WhatsApp, chat ke nomor admin: <?= $wa_number ?>.</li>
+                <li>Kirim screenshot tersebut beserta bukti transfer pembayaran Anda.</li>
+                <li>Admin akan verifikasi dan proses pesanan Anda segera.</li>
+            </ol>
+            <p><em>Tips: Gunakan tombol "Print Halaman Ini" di bawah untuk format cetak yang lebih rapi sebelum SS.</em></p>
+        </div>
+
+        <!-- Bagian Print & Screenshot -->
+        <div class="print-section no-print">
+            <button onclick="printPage()" class="print-btn">🖨️ Print Halaman Ini</button>
+            <p class="ss-instruction">
+                Print untuk simpan sebagai PDF atau kertas, lalu SS dan kirim ke WA admin untuk konfirmasi cepat.
+            </p>
+        </div>
+
+        <div style="text-align: center;" class="no-print">
             <a href="index.php" class="back-btn">Kembali ke Beranda</a>
             <?php if (isLoggedIn()): ?>
                 <a href="orders.php" class="back-btn">Lihat Semua Pesanan</a>
