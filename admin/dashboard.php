@@ -457,6 +457,12 @@ for ($i = 6; $i >= 0; $i--) {
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="settings.php" class="nav-link">  <!-- Tambah link ini -->
+                            <span class="nav-icon">⚙️</span>
+                            Pengaturan
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="../index.php" class="nav-link" target="_blank">
                             <span class="nav-icon">🌐</span>
                             Lihat Website

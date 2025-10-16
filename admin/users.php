@@ -484,46 +484,59 @@ $user_stats = $stmt->fetch();
             </div>
             
             <nav>
-    <ul class="nav-menu">
-        <li class="nav-item">
-            <a href="dashboard.php" class="nav-link">
-                <span class="nav-icon">📊</span>
-                Dashboard
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="products.php" class="nav-link">
-                <span class="nav-icon">🧴</span>
-                Kelola Produk
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="orders.php" class="nav-link">
-                <span class="nav-icon">📦</span>
-                Kelola Pesanan
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="users.php" class="nav-link">
-                <span class="nav-icon">👥</span>
-                Kelola User
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="reports.php" class="nav-link">
-                <span class="nav-icon">📈</span>
-                Laporan
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="../index.php" class="nav-link" target="_blank">
-                <span class="nav-icon">🌐</span>
-                Lihat Website
-            </a>
-        </li>
-    </ul>
-</nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.php" class="nav-link">
+                            <span class="nav-icon">📊</span>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="products.php" class="nav-link">
+                            <span class="nav-icon">🧴</span>
+                            Kelola Produk
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="orders.php" class="nav-link">
+                            <span class="nav-icon">📦</span>
+                            Kelola Pesanan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reviews.php" class="nav-link">
+                            <span class="nav-icon">⭐</span>
+                            Kelola Review
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="users.php" class="nav-link active">
+                            <span class="nav-icon">👥</span>
+                            Kelola User
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.php" class="nav-link">
+                            <span class="nav-icon">📈</span>
+                            Laporan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="settings.php" class="nav-link">  <!-- Tambah link ini -->
+                            <span class="nav-icon">⚙️</span>
+                            Pengaturan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="../index.php" class="nav-link" target="_blank">
+                            <span class="nav-icon">🌐</span>
+                            Lihat Website
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         </aside>
+
 
         <!-- Main Content -->
         <main class="main-content">

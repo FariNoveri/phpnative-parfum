@@ -57,5 +57,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-redirect("product_detail.php?id=$product_id");
+redirect("../product_detail.php?id=$product_id");
 ?>

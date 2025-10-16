@@ -1,17 +1,17 @@
 <?php
-// utils/midtrans_payment.php - Pastikan file ini di folder utils/, dan ga ada output sebelum header!
+// utils/midtrans_payment.php - No output before header!
 
 if (ob_get_level()) {
-    ob_clean();  // Bersihin buffer biar ga ada warning/output prematur
+    ob_end_clean(); // Clear buffer to prevent premature output
 }
 
 session_start();
-require_once '../config/database.php';  // Path relatif dari utils/ ke root/config
+require_once '../config/database.php';
 require_once '../config/midtrans_config.php';
 
 header('Content-Type: application/json');
 
-// Cek apakah ada order_id
+// Check if order_id is provided
 if (!isset($_POST['order_id'])) {
     echo json_encode([
         'status' => 'error',
@@ -22,7 +22,7 @@ if (!isset($_POST['order_id'])) {
 
 $order_id = $_POST['order_id'];
 
-// If temp order, use pending data from session
+// Handle temp order from session
 if (strpos($order_id, 'temp_') === 0) {
     if (!isset($_SESSION['pending_order']) || 
         !isset($_SESSION['pending_temp_order_id']) || 
@@ -34,14 +34,14 @@ if (strpos($order_id, 'temp_') === 0) {
     try {
         $pending = $_SESSION['pending_order'];
         
-        // Format items untuk Midtrans
+        // Format items for Midtrans
         $item_details = [];
         foreach ($pending['items'] as $item) {
             $item_details[] = [
                 'id' => 'PROD-' . $item['product_id'],
                 'price' => (int)$item['harga'],
                 'quantity' => (int)$item['jumlah'],
-                'name' => substr($item['nama_parfum'] . ' - ' . $item['brand'], 0, 50) // Max 50 karakter
+                'name' => substr($item['nama_parfum'], 0, 50) // Remove brand reference
             ];
         }
         
@@ -67,18 +67,18 @@ if (strpos($order_id, 'temp_') === 0) {
             ];
         }
         
-        // Build params untuk Midtrans
+        // Build params for Midtrans
         $params = [
             'transaction_details' => $transaction_details,
             'item_details' => $item_details,
             'customer_details' => $customer_details,
-            'enabled_payments' => ['credit_card', 'dana'],  // Tambah DANA dan metode lain
+            'enabled_payments' => ['credit_card', 'dana'],
             'callbacks' => [
-                'finish' => 'https://9b383fac1ef4.ngrok-free.app/utils/finish_payment.php'  // Update ke ngrok URL lo
+                'finish' => 'https://4b98f7842ec8.ngrok-free.app/utils/finish_payment.php'
             ]
         ];
         
-        // Request ke Midtrans API
+        // Request to Midtrans API
         $curl = curl_init();
         
         curl_setopt_array($curl, [
@@ -98,7 +98,7 @@ if (strpos($order_id, 'temp_') === 0) {
         $curl_error = curl_error($curl);
         curl_close($curl);
         
-        // Tambah logging untuk debug create snap
+        // Log for debugging
         error_log('Midtrans create snap HTTP: ' . $http_code);
         error_log('Midtrans create snap response: ' . $response);
         
@@ -109,7 +109,7 @@ if (strpos($order_id, 'temp_') === 0) {
         $result = json_decode($response, true);
         
         if ($http_code == 201 && isset($result['token'])) {
-            // Simpan snap token ke session untuk temp order
+            // Store snap token in session
             $_SESSION['snap_token'] = $result['token'];
             $_SESSION['midtrans_order_id'] = $midtrans_order_id;
             
@@ -122,6 +122,7 @@ if (strpos($order_id, 'temp_') === 0) {
             throw new Exception($result['error_messages'][0] ?? 'Gagal membuat transaksi: HTTP ' . $http_code);
         }
     } catch (Exception $e) {
+        error_log('Midtrans payment error: ' . $e->getMessage());
         echo json_encode([
             'status' => 'error',
             'message' => $e->getMessage()
@@ -129,13 +130,10 @@ if (strpos($order_id, 'temp_') === 0) {
     }
     
 } else {
-    // Handle real order dari database
+    // Handle real order from database
     try {
-        // Ambil data order
-        $stmt = $pdo->prepare("
-            SELECT * FROM orders 
-            WHERE id = ?
-        ");
+        // Fetch order
+        $stmt = $pdo->prepare("SELECT * FROM orders WHERE id = ?");
         $stmt->execute([$order_id]);
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -143,9 +141,9 @@ if (strpos($order_id, 'temp_') === 0) {
             throw new Exception('Order tidak ditemukan');
         }
         
-        // Ambil items dari order
+        // Fetch order items
         $stmt = $pdo->prepare("
-            SELECT oi.*, p.nama_parfum, p.brand 
+            SELECT oi.*, p.nama_parfum 
             FROM order_items oi 
             JOIN products p ON oi.product_id = p.id 
             WHERE oi.order_id = ?
@@ -153,14 +151,14 @@ if (strpos($order_id, 'temp_') === 0) {
         $stmt->execute([$order_id]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Format items untuk Midtrans
+        // Format items for Midtrans
         $item_details = [];
         foreach ($items as $item) {
             $item_details[] = [
                 'id' => 'PROD-' . $item['product_id'],
                 'price' => (int)$item['harga'],
                 'quantity' => (int)$item['jumlah'],
-                'name' => substr($item['nama_parfum'] . ' - ' . $item['brand'], 0, 50) // Max 50 karakter
+                'name' => substr($item['nama_parfum'], 0, 50) // Remove brand reference
             ];
         }
         
@@ -186,18 +184,18 @@ if (strpos($order_id, 'temp_') === 0) {
             ];
         }
         
-        // Build params untuk Midtrans
+        // Build params for Midtrans
         $params = [
             'transaction_details' => $transaction_details,
             'item_details' => $item_details,
             'customer_details' => $customer_details,
-            'enabled_payments' => ['credit_card', 'dana'],  // Tambah DANA
+            'enabled_payments' => ['credit_card', 'dana'],
             'callbacks' => [
-                'finish' => 'https://9b383fac1ef4.ngrok-free.app/utils/finish_payment.php'  // Update ke ngrok URL lo
+                'finish' => 'https://4b98f7842ec8.ngrok-free.app/utils/finish_payment.php'
             ]
         ];
         
-        // Request ke Midtrans API
+        // Request to Midtrans API
         $curl = curl_init();
         
         curl_setopt_array($curl, [
@@ -217,7 +215,7 @@ if (strpos($order_id, 'temp_') === 0) {
         $curl_error = curl_error($curl);
         curl_close($curl);
         
-        // Logging debug
+        // Log for debugging
         error_log('Midtrans create snap (real order) HTTP: ' . $http_code);
         error_log('Midtrans create snap response: ' . $response);
         
@@ -228,7 +226,7 @@ if (strpos($order_id, 'temp_') === 0) {
         $result = json_decode($response, true);
         
         if ($http_code == 201 && isset($result['token'])) {
-            // Simpan snap token ke database
+            // Store snap token in database
             $stmt = $pdo->prepare("
                 UPDATE orders 
                 SET snap_token = ?, midtrans_order_id = ? 
@@ -246,6 +244,7 @@ if (strpos($order_id, 'temp_') === 0) {
         }
         
     } catch (Exception $e) {
+        error_log('Midtrans payment (real order) error: ' . $e->getMessage());
         echo json_encode([
             'status' => 'error',
             'message' => $e->getMessage()

@@ -1,5 +1,10 @@
-// check_payment_status.php
 <?php
+// check_payment_status.php - No whitespace or output before this line!
+
+if (ob_get_level()) {
+    ob_end_clean();
+}
+
 session_start();
 require_once '../config/database.php';
 require_once '../config/midtrans_config.php';
@@ -74,12 +79,12 @@ try {
         
         // Simulate POST to payment_callback.php
         $_POST['order_id'] = $temp_order_id;
-        $_POST['transaction_status'] = $transaction_status;  // Use original Midtrans status
+        $_POST['transaction_status'] = $transaction_status;
         $_POST['transaction_id'] = $transaction_id;
         
         // Include payment_callback logic
         ob_start();
-        include 'utils/payment_callback.php';
+        include 'payment_callback.php';
         $callback_response = ob_get_clean();
         
         $callback_result = json_decode($callback_response, true);
@@ -111,3 +116,4 @@ try {
         'message' => $e->getMessage()
     ]);
 }
+?>

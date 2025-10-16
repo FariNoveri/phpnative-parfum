@@ -8,7 +8,6 @@ $min_price = $_GET['min_price'] ?? '';
 $max_price = $_GET['max_price'] ?? '';
 $min_rating = $_GET['min_rating'] ?? '';
 $sort_by = $_GET['sort_by'] ?? 'newest';
-$brands = $_GET['brands'] ?? [];
 $discount_only = isset($_GET['discount_only']);
 $seasons = $_GET['seasons'] ?? [];
 $occasions = $_GET['occasions'] ?? [];
@@ -38,9 +37,9 @@ $params = [];
 
 // Search functionality
 if ($search) {
-    $sql .= " AND (p.nama_parfum LIKE ? OR p.brand LIKE ? OR p.tags LIKE ? OR p.scent_notes LIKE ? OR p.season LIKE ? OR p.occasion LIKE ? OR p.sillage LIKE ?)";
+    $sql .= " AND (p.nama_parfum LIKE ? OR p.tags LIKE ? OR p.scent_notes LIKE ? OR p.season LIKE ? OR p.occasion LIKE ? OR p.sillage LIKE ?)";
     $search_term = "%$search%";
-    $params = array_merge($params, [$search_term, $search_term, $search_term, $search_term, $search_term, $search_term, $search_term]);
+    $params = array_merge($params, [$search_term, $search_term, $search_term, $search_term, $search_term, $search_term]);
 }
 
 // Category filter
@@ -63,13 +62,6 @@ if ($max_price) {
 if ($min_rating) {
     $sql .= " AND p.rating_average >= ?";
     $params[] = $min_rating;
-}
-
-// Brand filter
-if (!empty($brands)) {
-    $brand_placeholders = str_repeat('?,', count($brands) - 1) . '?';
-    $sql .= " AND p.brand IN ($brand_placeholders)";
-    $params = array_merge($params, $brands);
 }
 
 // Discount only filter
@@ -142,12 +134,6 @@ switch ($sort_by) {
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
-
-// Get available brands for filter
-$brand_sql = "SELECT DISTINCT brand FROM products ORDER BY brand";
-$brand_stmt = $pdo->prepare($brand_sql);
-$brand_stmt->execute();
-$available_brands = $brand_stmt->fetchAll(PDO::FETCH_COLUMN);
 
 // Get seasons and occasions for filters
 $season_sql = "SELECT DISTINCT season FROM products";
@@ -821,7 +807,6 @@ function renderStars($rating, $size = 'sm') {
                 <?php if (isLoggedIn()): ?>
                     <a href="profile.php">Profil</a>
                     <a href="orders.php">Pesanan</a>
-                    <a href="wishlist.php">Wishlist</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
@@ -863,7 +848,7 @@ function renderStars($rating, $size = 'sm') {
             <form class="search-form" method="GET" action="">
                 <div class="search-row">
                     <input type="text" name="search" class="search-input" 
-                           placeholder="Cari parfum, brand, aroma, musim, kesempatan (contoh: Tom Ford, woody, fresh, spring, evening)..." 
+                           placeholder="Cari parfum, aroma, musim, kesempatan (contoh: woody, fresh, spring, evening)..." 
                            value="<?= htmlspecialchars($search) ?>">
                     <button type="submit" class="btn">🔍 Cari</button>
                 </div>
@@ -903,20 +888,6 @@ function renderStars($rating, $size = 'sm') {
                     </label>
                 </div>
                 
-                <?php if (!empty($available_brands)): ?>
-                <div class="search-row">
-                    <div class="filter-group">
-                        <label>Brand:</label>
-                        <?php foreach (array_slice($available_brands, 0, 6) as $brand): ?>
-                            <label class="filter-checkbox">
-                                <input type="checkbox" name="brands[]" value="<?= $brand ?>" 
-                                       <?= in_array($brand, $brands) ? 'checked' : '' ?>>
-                                <span><?= $brand ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
                 
                 <div class="search-row">
                     <div class="filter-group">
@@ -1054,10 +1025,7 @@ function renderStars($rating, $size = 'sm') {
                                             <span class="badge badge-bestseller">Terlaris</span>
                                         <?php endif; ?>
                                     </div>
-                                    
-                                    <button class="wishlist-btn" onclick="event.preventDefault(); toggleWishlist(<?= $product['id'] ?>)">
-                                        ♡
-                                    </button>
+                                
                                 </div>
                             </a>
                             
@@ -1150,14 +1118,6 @@ function renderStars($rating, $size = 'sm') {
                 });
             });
             
-            // Brand checkboxes
-            const brandCheckboxes = document.querySelectorAll('input[name="brands[]"]');
-            brandCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    setTimeout(() => this.form.submit(), 100);
-                });
-            });
-
             // Season and occasion checkboxes
             const seasonCheckboxes = document.querySelectorAll('input[name="seasons[]"]');
             seasonCheckboxes.forEach(checkbox => {

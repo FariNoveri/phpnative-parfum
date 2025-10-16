@@ -21,7 +21,7 @@ $order = $stmt->fetch();
 if (!$order) {
     error_log('Order Confirmation - Order not found: ' . $order_id);
     
-    // Cek apakah ada pending order di session
+    // Check for pending order in session
     if (isset($_SESSION['pending_order'])) {
         error_log('Order Confirmation - Found pending order in session');
         $_SESSION['message'] = 'Pesanan belum selesai diproses. Silakan coba lagi atau hubungi admin.';
@@ -38,7 +38,7 @@ error_log('Order Confirmation - Order found: ' . $order_id . ', Status: ' . $ord
 
 // Get order items
 $stmt = $pdo->prepare("
-    SELECT oi.*, p.nama_parfum, p.brand 
+    SELECT oi.*, p.nama_parfum 
     FROM order_items oi 
     JOIN products p ON oi.product_id = p.id 
     WHERE oi.order_id = ?
@@ -47,7 +47,7 @@ $stmt->execute([$order_id]);
 $order_items = $stmt->fetchAll();
 
 // WhatsApp message
-$wa_number = "6281234567890"; // Ganti dengan nomor WA toko
+$wa_number = "6281234567890"; // Replace with store's WhatsApp number
 $wa_message = "Halo Admin Parfum Premium,\n\nSaya ingin konfirmasi pembayaran untuk pesanan berikut:\n\n";
 $wa_message .= "*ID Pesanan:* {$order['id']}\n";
 $wa_message .= "*Nama Customer:* {$order['nama_customer']}\n";
@@ -56,7 +56,7 @@ $wa_message .= "*Telepon:* {$order['telepon_customer']}\n";
 $wa_message .= "*Total Bayar:* " . formatRupiah($order['total_harga']) . "\n\n";
 $wa_message .= "*Detail Items:*\n";
 foreach ($order_items as $item) {
-    $wa_message .= "• {$item['nama_parfum']} ({$item['brand']}) x {$item['jumlah']} = " . formatRupiah($item['harga'] * $item['jumlah']) . "\n";
+    $wa_message .= "• {$item['nama_parfum']} x {$item['jumlah']} = " . formatRupiah($item['harga'] * $item['jumlah']) . "\n";
 }
 $wa_message .= "\n*Alamat Pengiriman:*\n{$order['alamat_customer']}\n\n";
 $wa_message .= "Terlampir screenshot halaman konfirmasi pesanan sebagai bukti. Mohon proses pesanan saya secepatnya. Terima kasih!";
@@ -72,6 +72,47 @@ $status_color = match($payment_status) {
     'failed', 'cancelled' => '#e74c3c',
     default => '#666'
 };
+
+// Fonnte integration for WhatsApp notification
+$token = 'ChsQDEYhJLq1N8CnQEbS'; // Replace with your Fonnte API token
+
+if (!isset($_SESSION['notif_sent_' . $order_id])) {
+    $target = $order['telepon_customer'];
+    $message = "Terima kasih telah memesan di Toko Parfum Premium.\nPesanan Anda #" . $order['id'] . " dengan total " . formatRupiah($order['total_harga']) . " sedang diproses.\nDetail pesanan:\n";
+
+    foreach ($order_items as $item) {
+        $message .= "- " . htmlspecialchars($item['nama_parfum']) . " x" . $item['jumlah'] . " = " . formatRupiah($item['harga'] * $item['jumlah']) . "\n";
+    }
+
+    $message .= "\nAlamat: " . htmlspecialchars($order['alamat_customer']) . "\n\nKami akan segera memproses pesanan Anda.";
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => 'https://api.fonnte.com/send',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => array(
+            'target' => $target,
+            'message' => $message,
+            'countryCode' => '62',
+        ),
+        CURLOPT_HTTPHEADER => array(
+            'Authorization: ' . $token
+        ),
+    ));
+
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    $_SESSION['notif_sent_' . $order_id] = true;
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -89,7 +130,7 @@ $status_color = match($payment_status) {
         
         body {
             font-family: 'Arial', sans-serif;
-            line-height: 1.6;
+            line-height: 1.4;
             color: #333;
             background-color: #f8f9fa;
         }
@@ -97,78 +138,80 @@ $status_color = match($payment_status) {
         .container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 1rem;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 1rem;
         }
         
         .header h1 {
             color: #27ae60;
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
         }
         
         .header .checkmark {
-            font-size: 4rem;
+            font-size: 3rem;
             color: #27ae60;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
         
         .order-card {
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             overflow: hidden;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
         }
         
         .order-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 2rem;
+            padding: 1rem;
             text-align: center;
         }
         
         .order-id {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: bold;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
         }
         
         .order-status {
             background: rgba(255,255,255,0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
+            padding: 0.4rem 0.8rem;
+            border-radius: 15px;
             display: inline-block;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
         
         .order-details {
-            padding: 2rem;
+            padding: 1rem;
         }
         
         .detail-section {
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
         }
         
         .detail-section h3 {
             color: #333;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #667eea;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #667eea;
+            font-size: 1.1rem;
         }
         
         .customer-info {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
         }
         
         .info-item {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
         }
         
         .info-label {
@@ -180,8 +223,9 @@ $status_color = match($payment_status) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
         }
         
         .order-item:last-child {
@@ -194,16 +238,11 @@ $status_color = match($payment_status) {
         
         .item-name {
             font-weight: bold;
-            margin-bottom: 0.25rem;
-        }
-        
-        .item-brand {
-            color: #666;
-            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
         }
         
         .item-quantity {
-            margin: 0 1rem;
+            margin: 0 0.5rem;
             color: #666;
         }
         
@@ -213,14 +252,14 @@ $status_color = match($payment_status) {
         }
         
         .total-section {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 2px solid #667eea;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #667eea;
             text-align: right;
         }
         
         .total-amount {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: bold;
             color: #333;
         }
@@ -228,63 +267,66 @@ $status_color = match($payment_status) {
         .payment-instructions {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 2rem;
-            margin: 2rem 0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
         }
         
         .payment-instructions h3 {
             color: #856404;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
         }
         
         .bank-info {
             background: white;
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 5px;
-            margin: 1rem 0;
-            border-left: 4px solid #667eea;
+            margin: 0.8rem 0;
+            border-left: 3px solid #667eea;
+            font-size: 0.9rem;
         }
         
         .whatsapp-section {
             background: #e8f5e8;
-            border-radius: 10px;
-            padding: 2rem;
+            border-radius: 8px;
+            padding: 1rem;
             text-align: center;
-            margin: 2rem 0;
+            margin: 1rem 0;
         }
         
         .whatsapp-btn {
             background: #25d366;
             color: white;
-            padding: 1rem 2rem;
+            padding: 0.8rem 1.5rem;
             border: none;
-            border-radius: 50px;
-            font-size: 1.2rem;
+            border-radius: 25px;
+            font-size: 1rem;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
             transition: all 0.3s;
-            box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
+            box-shadow: 0 3px 10px rgba(37, 211, 102, 0.2);
         }
         
         .whatsapp-btn:hover {
             background: #20b954;
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+            box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
         }
         
         .back-btn {
             background: #667eea;
             color: white;
-            padding: 0.8rem 2rem;
+            padding: 0.6rem 1.5rem;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             text-decoration: none;
             display: inline-block;
             transition: background 0.3s;
-            margin-top: 2rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
         }
         
         .back-btn:hover {
@@ -294,37 +336,40 @@ $status_color = match($payment_status) {
         .warning {
             background: #f8d7da;
             color: #721c24;
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 5px;
             border: 1px solid #f5c6cb;
-            margin: 1rem 0;
+            margin: 0.8rem 0;
             text-align: center;
+            font-size: 0.9rem;
         }
         
         .success-message {
             background: #d4edda;
             color: #155724;
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 5px;
             border: 1px solid #c3e6cb;
-            margin: 1rem 0;
+            margin: 0.8rem 0;
             text-align: center;
+            font-size: 0.9rem;
         }
         
         .status-badge {
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
+            padding: 0.4rem 0.8rem;
+            border-radius: 15px;
             font-weight: bold;
             color: white;
+            font-size: 0.9rem;
         }
         
         @media (max-width: 768px) {
             .container {
-                padding: 1rem;
+                padding: 0.5rem;
             }
             
             .header h1 {
-                font-size: 2rem;
+                font-size: 1.5rem;
             }
             
             .order-item {
@@ -336,7 +381,7 @@ $status_color = match($payment_status) {
             .item-quantity,
             .item-price {
                 margin-left: 0;
-                margin-top: 0.5rem;
+                margin-top: 0.3rem;
             }
             
             .total-section {
@@ -347,58 +392,60 @@ $status_color = match($payment_status) {
         .step-indicator {
             display: flex;
             justify-content: center;
-            margin: 2rem 0;
+            margin: 1rem 0;
         }
         
         .step {
             display: flex;
             align-items: center;
-            margin: 0 1rem;
+            margin: 0 0.5rem;
         }
         
         .step-number {
             background: #667eea;
             color: white;
-            width: 30px;
-            height: 30px;
+            width: 25px;
+            height: 25px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            margin-right: 0.5rem;
+            margin-right: 0.4rem;
+            font-size: 0.9rem;
         }
         
         .step-text {
             font-weight: 500;
+            font-size: 0.9rem;
         }
         
         .debug-info {
             background: #f0f0f0;
             border: 1px solid #ccc;
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 5px;
-            margin: 1rem 0;
+            margin: 0.8rem 0;
             font-family: monospace;
-            font-size: 0.85rem;
-            display: none; /* Hide by default, enable for debugging */
+            font-size: 0.8rem;
+            display: none;
         }
         
         .print-section {
-            margin: 2rem 0;
+            margin: 1rem 0;
             text-align: center;
         }
         
         .print-btn {
             background: #3498db;
             color: white;
-            padding: 0.8rem 2rem;
+            padding: 0.6rem 1.5rem;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.9rem;
             transition: background 0.3s;
-            margin-right: 1rem;
+            margin-right: 0.5rem;
         }
         
         .print-btn:hover {
@@ -407,10 +454,10 @@ $status_color = match($payment_status) {
         
         .ss-instruction {
             background: #e8f5e8;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            font-size: 0.95rem;
+            padding: 0.8rem;
+            border-radius: 6px;
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
         }
         
         @media print {
@@ -419,14 +466,73 @@ $status_color = match($payment_status) {
             }
             body {
                 background: white;
+                margin: 0;
+                padding: 0;
+                font-size: 10pt;
+                line-height: 1.2;
             }
             .container {
                 max-width: 100%;
-                padding: 1rem;
+                padding: 0.5cm;
+                margin: 0;
             }
             .order-card {
                 box-shadow: none;
                 border: 1px solid #ddd;
+                page-break-inside: avoid;
+            }
+            .header {
+                margin-bottom: 0.5cm;
+            }
+            .header h1 {
+                font-size: 14pt;
+            }
+            .header .checkmark {
+                font-size: 24pt;
+            }
+            .order-header {
+                padding: 0.5cm;
+            }
+            .order-id {
+                font-size: 12pt;
+            }
+            .order-status {
+                padding: 0.3cm 0.6cm;
+            }
+            .order-details {
+                padding: 0.5cm;
+            }
+            .detail-section {
+                margin-bottom: 0.5cm;
+            }
+            .detail-section h3 {
+                font-size: 12pt;
+                padding-bottom: 0.2cm;
+            }
+            .customer-info {
+                grid-template-columns: 1fr;
+                gap: 0.3cm;
+            }
+            .info-item {
+                font-size: 10pt;
+            }
+            .order-item {
+                padding: 0.3cm 0;
+                font-size: 10pt;
+            }
+            .total-section {
+                margin-top: 0.5cm;
+                padding-top: 0.5cm;
+            }
+            .total-amount {
+                font-size: 12pt;
+            }
+            .payment-instructions, .whatsapp-section, .step-indicator, .ss-instruction, .print-section {
+                display: none !important;
+            }
+            @page {
+                margin: 0.5cm;
+                size: A4;
             }
         }
     </style>
@@ -479,12 +585,12 @@ $status_color = match($payment_status) {
                             <?= htmlspecialchars($order['telepon_customer']) ?>
                         </div>
                     </div>
-                    <div class="info-item" style="margin-top: 1rem;">
+                    <div class="info-item" style="margin-top: 0.5rem;">
                         <span class="info-label">Alamat:</span><br>
                         <?= nl2br(htmlspecialchars($order['alamat_customer'])) ?>
                     </div>
                     <?php if ($order['notes']): ?>
-                        <div class="info-item" style="margin-top: 1rem;">
+                        <div class="info-item" style="margin-top: 0.5rem;">
                             <span class="info-label">Catatan:</span><br>
                             <?= nl2br(htmlspecialchars($order['notes'])) ?>
                         </div>
@@ -497,7 +603,6 @@ $status_color = match($payment_status) {
                         <div class="order-item">
                             <div class="item-info">
                                 <div class="item-name"><?= htmlspecialchars($item['nama_parfum']) ?></div>
-                                <div class="item-brand"><?= htmlspecialchars($item['brand']) ?></div>
                             </div>
                             <div class="item-quantity">×<?= $item['jumlah'] ?></div>
                             <div class="item-price"><?= formatRupiah($item['harga'] * $item['jumlah']) ?></div>
@@ -545,7 +650,7 @@ $status_color = match($payment_status) {
                 <a href="<?= $wa_link ?>" target="_blank" class="whatsapp-btn">
                     📱 Kirim Konfirmasi via WhatsApp
                 </a>
-                <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #666;">
                     *Pastikan Anda melampirkan bukti transfer saat chat.
                 </p>
             </div>

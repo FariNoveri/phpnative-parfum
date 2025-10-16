@@ -5,7 +5,7 @@ require_once 'config/midtrans_config.php';
 // Get cart items
 if (isLoggedIn()) {
     $stmt = $pdo->prepare("
-        SELECT c.*, p.nama_parfum, p.brand, p.harga, p.stok 
+        SELECT c.*, p.nama_parfum, p.harga, p.stok 
         FROM cart c 
         JOIN products p ON c.product_id = p.id 
         WHERE c.user_id = ? 
@@ -14,7 +14,7 @@ if (isLoggedIn()) {
     $stmt->execute([getUserId()]);
 } else {
     $stmt = $pdo->prepare("
-        SELECT c.*, p.nama_parfum, p.brand, p.harga, p.stok 
+        SELECT c.*, p.nama_parfum, p.harga, p.stok 
         FROM cart c 
         JOIN products p ON c.product_id = p.id 
         WHERE c.session_id = ? 
@@ -257,11 +257,6 @@ if ($_POST) {
             margin-bottom: 0.25rem;
         }
         
-        .item-brand {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
         .item-quantity {
             margin-left: 1rem;
             color: #666;
@@ -482,7 +477,6 @@ if ($_POST) {
                         <div class="order-item">
                             <div class="item-info">
                                 <div class="item-name"><?= htmlspecialchars($item['nama_parfum']) ?></div>
-                                <div class="item-brand"><?= htmlspecialchars($item['brand']) ?></div>
                             </div>
                             <div class="item-quantity">×<?= $item['jumlah'] ?></div>
                             <div class="item-price"><?= formatRupiah($item['harga'] * $item['jumlah']) ?></div>
@@ -548,7 +542,7 @@ if ($_POST) {
         formData.append('ajax', '1');
         
         // Step 1: Submit form to store pending order in session
-        fetch('utils/checkout_ajax.php', {  // ← GANTI KE FILE BARU
+        fetch('utils/checkout_ajax.php', {
             method: 'POST',
             body: formData
         })

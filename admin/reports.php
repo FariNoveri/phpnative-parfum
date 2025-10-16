@@ -27,7 +27,6 @@ $daily_sales = $stmt->fetchAll();
 $stmt = $pdo->prepare("
     SELECT 
         p.nama_parfum,
-        p.brand,
         p.kategori,
         p.harga,
         p.stok,
@@ -131,6 +130,12 @@ $total_orders = array_sum(array_column($daily_sales, 'total_orders'));
         .admin-title {
             font-size: 1.2rem;
             opacity: 0.9;
+        }
+        
+        .admin-name {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-top: 0.5rem;
         }
         
         .nav-menu {
@@ -402,48 +407,61 @@ $total_orders = array_sum(array_column($daily_sales, 'total_orders'));
             <div class="sidebar-header">
                 <div class="admin-logo">🌸</div>
                 <div class="admin-title">Admin Panel</div>
+                <div class="admin-name">👋 <?= $_SESSION['user_name'] ?></div>
             </div>
             
             <nav>
-    <ul class="nav-menu">
-        <li class="nav-item">
-            <a href="dashboard.php" class="nav-link">
-                <span class="nav-icon">📊</span>
-                Dashboard
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="products.php" class="nav-link">
-                <span class="nav-icon">🧴</span>
-                Kelola Produk
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="orders.php" class="nav-link">
-                <span class="nav-icon">📦</span>
-                Kelola Pesanan
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="users.php" class="nav-link">
-                <span class="nav-icon">👥</span>
-                Kelola User
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="reports.php" class="nav-link">
-                <span class="nav-icon">📈</span>
-                Laporan
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="../index.php" class="nav-link" target="_blank">
-                <span class="nav-icon">🌐</span>
-                Lihat Website
-            </a>
-        </li>
-    </ul>
-</nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.php" class="nav-link">
+                            <span class="nav-icon">📊</span>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="products.php" class="nav-link">
+                            <span class="nav-icon">🧴</span>
+                            Kelola Produk
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="orders.php" class="nav-link">
+                            <span class="nav-icon">📦</span>
+                            Kelola Pesanan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reviews.php" class="nav-link">
+                            <span class="nav-icon">⭐</span>
+                            Kelola Review
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="users.php" class="nav-link">
+                            <span class="nav-icon">👥</span>
+                            Kelola User
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.php" class="nav-link active">
+                            <span class="nav-icon">📈</span>
+                            Laporan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="settings.php" class="nav-link">
+                            <span class="nav-icon">⚙️</span>
+                            Pengaturan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="../index.php" class="nav-link" target="_blank">
+                            <span class="nav-icon">🌐</span>
+                            Lihat Website
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         </aside>
 
         <!-- Main Content -->
@@ -625,9 +643,6 @@ $total_orders = array_sum(array_column($daily_sales, 'total_orders'));
                                         <td>
                                             <div style="font-weight: bold; margin-bottom: 0.25rem;">
                                                 <?= htmlspecialchars($product['nama_parfum']) ?>
-                                            </div>
-                                            <div style="font-size: 0.9rem; color: #666;">
-                                                <?= htmlspecialchars($product['brand']) ?>
                                             </div>
                                         </td>
                                         <td><?= ucfirst($product['kategori']) ?></td>

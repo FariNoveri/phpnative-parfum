@@ -26,7 +26,7 @@ if (!$order) {
 
 // Get order items
 $stmt = $pdo->prepare("
-    SELECT oi.*, p.nama_parfum, p.brand 
+    SELECT oi.*, p.nama_parfum 
     FROM order_items oi 
     JOIN products p ON oi.product_id = p.id 
     WHERE oi.order_id = ?

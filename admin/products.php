@@ -17,7 +17,6 @@ if (in_array($action, ['add', 'edit'])) {
 // Handle form submissions
 if ($_POST) {
     $nama_parfum = trim($_POST['nama_parfum'] ?? '');
-    $brand = trim($_POST['brand'] ?? '');
     $harga = (float)($_POST['harga'] ?? 0);
     $original_price = (float)($_POST['original_price'] ?? $harga);
     $discount_type = $_POST['discount_type'] ?? 'percentage';
@@ -65,7 +64,7 @@ if ($_POST) {
         }
     }
 
-    if (empty($nama_parfum) || empty($brand) || empty($kategori) || $original_price <= 0 || empty($volumes)) {
+    if (empty($nama_parfum) || empty($kategori) || $original_price <= 0 || empty($volumes)) {
         $error = 'Semua field wajib harus diisi dengan benar, termasuk minimal satu volume option';
     } elseif (count($gambar) < 1 || count($gambar) > 5) {
         $error = 'Gambar produk harus antara 1 hingga 5 buah';
@@ -80,8 +79,8 @@ if ($_POST) {
         }
 
         if ($action === 'add') {
-            $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, brand, harga, original_price, discount_percentage, stok, deskripsi, kategori, volume_ml, scent_notes, longevity_hours, sillage, season, occasion, tags, is_refill) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill])) {
+            $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, harga, original_price, discount_percentage, stok, deskripsi, kategori, volume_ml, scent_notes, longevity_hours, sillage, season, occasion, tags, is_refill) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if ($stmt->execute([$nama_parfum, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill])) {
                 $new_id = $pdo->lastInsertId();
 
                 // Insert images
@@ -109,8 +108,8 @@ if ($_POST) {
         }
 
         if ($action === 'edit' && $product_id > 0 && empty($error)) {
-            $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, brand = ?, harga = ?, original_price = ?, discount_percentage = ?, stok = ?, deskripsi = ?, kategori = ?, volume_ml = ?, scent_notes = ?, longevity_hours = ?, sillage = ?, season = ?, occasion = ?, tags = ?, is_refill = ? WHERE id = ?");
-            if ($stmt->execute([$nama_parfum, $brand, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $product_id])) {
+            $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, harga = ?, original_price = ?, discount_percentage = ?, stok = ?, deskripsi = ?, kategori = ?, volume_ml = ?, scent_notes = ?, longevity_hours = ?, sillage = ?, season = ?, occasion = ?, tags = ?, is_refill = ? WHERE id = ?");
+            if ($stmt->execute([$nama_parfum, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $product_id])) {
                 // Delete and insert new images
                 $stmt_img_del = $pdo->prepare("DELETE FROM product_images WHERE product_id = ?");
                 $stmt_img_del->execute([$product_id]);
@@ -123,8 +122,6 @@ if ($_POST) {
                     $stmt_img->execute([$product_id, $img_url, $alt_text, $sort_order, $is_primary]);
                     $sort_order++;
                 }
-
-                // Update alt_text if any old images, but since deleted, ok
 
                 // Delete and insert new volumes
                 $stmt_vol_del = $pdo->prepare("DELETE FROM product_volume_prices WHERE product_id = ?");
@@ -235,8 +232,7 @@ $sql = "SELECT p.*,
 $params = [];
 
 if ($search) {
-    $sql .= " AND (p.nama_parfum LIKE ? OR p.brand LIKE ?)";
-    $params[] = "%$search%";
+    $sql .= " AND (p.nama_parfum LIKE ?)";
     $params[] = "%$search%";
 }
 
@@ -315,6 +311,12 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         .admin-title {
             font-size: 1.2rem;
             opacity: 0.9;
+        }
+        
+        .admin-name {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-top: 0.5rem;
         }
         
         .nav-menu {
@@ -800,6 +802,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             <div class="sidebar-header">
                 <div class="admin-logo">🌸</div>
                 <div class="admin-title">Admin Panel</div>
+                <div class="admin-name">👋 <?= $_SESSION['user_name'] ?></div>
             </div>
             
             <nav>
@@ -820,6 +823,11 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="reviews.php" class="nav-link">
+                            <span class="nav-icon">⭐</span> Kelola Review
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="users.php" class="nav-link">
                             <span class="nav-icon">👥</span> Kelola User
                         </a>
@@ -827,6 +835,11 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                     <li class="nav-item">
                         <a href="reports.php" class="nav-link">
                             <span class="nav-icon">📈</span> Laporan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="settings.php" class="nav-link">
+                            <span class="nav-icon">⚙️</span> Pengaturan
                         </a>
                     </li>
                     <li class="nav-item">
@@ -879,11 +892,6 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                     <input type="text" id="nama_parfum" name="nama_parfum" required
                                            value="<?= htmlspecialchars($form_data['nama_parfum'] ?? $product['nama_parfum'] ?? '') ?>">
                                 </div>
-                                <div class="form-group">
-                                    <label for="brand">Brand *</label>
-                                    <input type="text" id="brand" name="brand" required
-                                           value="<?= htmlspecialchars($form_data['brand'] ?? $product['brand'] ?? '') ?>">
-                                </div>
                             </div>
 
                             <div class="form-row">
@@ -895,7 +903,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                 <div class="form-group">
                                     <label for="discount_type">Jenis Diskon</label>
                                     <select id="discount_type" name="discount_type" onchange="toggleDiscountType()">
-                                        <option value="percentage" <?= ($form_data['discount_type'] ?? ($product['discount_percentage'] > 0 ? 'percentage' : 'percentage')) === 'percentage' ? 'selected' : '' ?>>Persentase (%)</option>
+                                        <option value="percentage" <?= ($form_data['discount_type'] ?? 'percentage') === 'percentage' ? 'selected' : '' ?>>Persentase (%)</option>
                                         <option value="nominal" <?= ($form_data['discount_type'] ?? 'percentage') === 'nominal' ? 'selected' : '' ?>>Nominal (Rp)</option>
                                     </select>
                                 </div>
@@ -1307,7 +1315,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                         <form method="GET" class="filter-form">
                             <div class="form-group">
                                 <label>Cari Produk</label>
-                                <input type="text" name="search" placeholder="Nama atau brand..."
+                                <input type="text" name="search" placeholder="Nama..."
                                        value="<?= htmlspecialchars($search) ?>">
                             </div>
                             <div class="form-group">

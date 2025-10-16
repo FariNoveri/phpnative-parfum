@@ -1,6 +1,5 @@
 <?php
 session_start();
-// product_detail.php - Updated with volume selection and review form
 require_once 'config/database.php';
 
 $product_id = (int)($_GET['id'] ?? 0);
@@ -48,15 +47,15 @@ $volume_options = $volume_stmt->fetchAll();
 $images = explode('|', $product['all_images'] ?? '');
 $main_image = $images[0] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjIwMCIgeT0iMjAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==';
 
-// Fetch reviews
-$reviews_sql = "SELECT * FROM product_reviews WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC";
+// Fetch reviews (approved for all, plus all reviews for the current user)
+$reviews_sql = "SELECT * FROM product_reviews WHERE product_id = ? AND (status = 'approved' OR user_id = ?) ORDER BY created_at DESC";
 $reviews_stmt = $pdo->prepare($reviews_sql);
-$reviews_stmt->execute([$product_id]);
+$user_id = isLoggedIn() ? getUserId() : null;
+$reviews_stmt->execute([$product_id, $user_id]);
 $reviews = $reviews_stmt->fetchAll();
 
 // Log view
 $log_sql = "INSERT INTO product_views (product_id, user_id, ip_address, session_id, viewed_at) VALUES (?, ?, ?, ?, NOW())";
-$user_id = isLoggedIn() ? getUserId() : null;
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $session_id = session_id();
 $pdo->prepare($log_sql)->execute([$product_id, $user_id, $ip, $session_id]);
@@ -65,10 +64,10 @@ $pdo->prepare($log_sql)->execute([$product_id, $user_id, $ip, $session_id]);
 $similar_sql = "SELECT p.*, 
                 (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image
                 FROM products p 
-                WHERE p.id != ? AND (p.kategori = ? OR p.brand = ?) 
+                WHERE p.id != ? AND p.kategori = ?
                 ORDER BY RAND() LIMIT 4";
 $similar_stmt = $pdo->prepare($similar_sql);
-$similar_stmt->execute([$product_id, $product['kategori'], $product['brand']]);
+$similar_stmt->execute([$product_id, $product['kategori']]);
 $similar_products = $similar_stmt->fetchAll();
 
 function renderStars($rating) {
@@ -76,9 +75,20 @@ function renderStars($rating) {
     $half_star = ($rating - $full_stars) >= 0.5;
     $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
     
-    $stars = str_repeat('⭐', $full_stars);
-    if ($half_star) $stars .= '½';
-    $stars .= str_repeat('☆', $empty_stars);
+    $color_class = '';
+    if ($rating <= 2) {
+        $color_class = 'star-poor';
+    } elseif ($rating <= 3) {
+        $color_class = 'star-average';
+    } elseif ($rating <= 4) {
+        $color_class = 'star-good';
+    } else {
+        $color_class = 'star-excellent';
+    }
+    
+    $stars = str_repeat("<span class='star $color_class'>⭐</span>", $full_stars);
+    if ($half_star) $stars .= "<span class='star $color_class'>½</span>";
+    $stars .= str_repeat("<span class='star star-empty'>☆</span>", $empty_stars);
     
     return $stars;
 }
@@ -297,7 +307,6 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             color: #666;
         }
 
-        /* Volume Selection Styles */
         .volume-selection {
             margin-bottom: 2rem;
         }
@@ -379,7 +388,6 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             cursor: not-allowed;
         }
 
-        /* Quantity Selection */
         .quantity-selection {
             margin-bottom: 2rem;
         }
@@ -511,6 +519,13 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             font-size: 1.2rem;
         }
 
+        .review-status {
+            color: #e67e22;
+            font-style: italic;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
         .review-actions {
             display: flex;
             gap: 0.5rem;
@@ -583,9 +598,16 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             transition: color 0.3s;
         }
 
-        .star.selected {
-            color: #ffd700;
-        }
+        .star.selected.star-poor { color: #e74c3c; }
+        .star.selected.star-average { color: #f1c40f; }
+        .star.selected.star-good { color: #2ecc71; }
+        .star.selected.star-excellent { color: #ffd700; }
+        .star.star-empty { color: #ddd; }
+
+        .star-poor { color: #e74c3c; }
+        .star-average { color: #f1c40f; }
+        .star-good { color: #2ecc71; }
+        .star-excellent { color: #ffd700; }
 
         .submit-review {
             background: #667eea;
@@ -735,7 +757,6 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                 <?php if (isLoggedIn()): ?>
                     <a href="profile.php">Profil</a>
                     <a href="orders.php">Pesanan</a>
-                    <a href="wishlist.php">Wishlist</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
@@ -768,7 +789,6 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                 
                 <div class="product-info">
                     <h1 class="product-title"><?= htmlspecialchars($product['nama_parfum']) ?></h1>
-                    <div class="product-brand">Refill Premium</div>
                     
                     <div class="product-rating">
                         <?= renderStars($product['rating_average']) ?>
@@ -936,6 +956,9 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                                 <h3><?= htmlspecialchars($review['review_title']) ?></h3>
                             <?php endif; ?>
                             <p><?= nl2br(htmlspecialchars($review['review_text'])) ?></p>
+                            <?php if ($review['status'] === 'pending'): ?>
+                                <p class="review-status">Menunggu Persetujuan Admin</p>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -1002,22 +1025,18 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             const price = parseFloat(radio.dataset.price);
             const stock = parseInt(radio.dataset.stock);
             
-            // Update price display
             const priceDisplay = document.getElementById('displayPrice');
             priceDisplay.innerHTML = formatRupiah(price);
             
-            // Update stock display
             const stockDisplay = document.getElementById('stockDisplay');
             stockDisplay.textContent = 'Stok: ' + stock;
             
-            // Update quantity max
             const quantityInput = document.getElementById('quantity');
             quantityInput.max = stock;
             if (parseInt(quantityInput.value) > stock) {
                 quantityInput.value = stock;
             }
             
-            // Update button state
             updateButtonState(stock);
         }
 
@@ -1063,7 +1082,6 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             return 'Rp ' + new Intl.NumberFormat('id-ID').format(number);
         }
 
-        // Initialize button state on load
         document.addEventListener('DOMContentLoaded', function() {
             const selectedRadio = document.querySelector('input[name="volume_selected"]:checked');
             if (selectedRadio) {
@@ -1072,7 +1090,6 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             }
         });
 
-        // Listen to quantity input changes
         document.getElementById('quantity').addEventListener('input', function() {
             const selectedRadio = document.querySelector('input[name="volume_selected"]:checked');
             if (selectedRadio) {
@@ -1081,14 +1098,26 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             }
         });
 
-        // Review stars
         function setRating(rating) {
             const stars = document.querySelectorAll('.star');
+            let colorClass = '';
+            if (rating <= 2) {
+                colorClass = 'star-poor';
+            } else if (rating === 3) {
+                colorClass = 'star-average';
+            } else if (rating === 4) {
+                colorClass = 'star-good';
+            } else {
+                colorClass = 'star-excellent';
+            }
+            
             stars.forEach((star, index) => {
+                star.classList.remove('star-poor', 'star-average', 'star-good', 'star-excellent');
                 if (index < rating) {
-                    star.classList.add('selected');
+                    star.classList.add('selected', colorClass);
                 } else {
                     star.classList.remove('selected');
+                    star.classList.add('star-empty');
                 }
             });
             document.getElementById('rating').value = rating;

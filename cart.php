@@ -2,9 +2,19 @@
 // cart.php - Updated to display volume selection
 require_once 'config/database.php';
 
+// Ambil settings ongkir dari database
+$settings_sql = "SELECT `key`, `value` FROM settings WHERE `key` IN ('shipping_rate', 'free_shipping_threshold')";
+$settings_stmt = $pdo->query($settings_sql);
+$settings = [];
+while ($row = $settings_stmt->fetch(PDO::FETCH_ASSOC)) {
+    $settings[$row['key']] = $row['value'];
+}
+$shipping_rate = (int)($settings['shipping_rate'] ?? 15000);  // Default jika belum ada
+$free_shipping_threshold = (int)($settings['free_shipping_threshold'] ?? 500000);  // Default jika belum ada
+
 // Fetch cart items with volume information
 if (isLoggedIn()) {
-    $sql = "SELECT c.*, p.nama_parfum, p.brand, p.harga, p.stok, p.kategori,
+    $sql = "SELECT c.*, p.nama_parfum, p.harga, p.stok, p.kategori,
             (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image,
             COALESCE(pvp.price, p.harga) as volume_price,
             COALESCE(pvp.stock, p.stok) as volume_stock
@@ -16,7 +26,7 @@ if (isLoggedIn()) {
     $stmt = $pdo->prepare($sql);
     $stmt->execute([getUserId()]);
 } else {
-    $sql = "SELECT c.*, p.nama_parfum, p.brand, p.harga, p.stok, p.kategori,
+    $sql = "SELECT c.*, p.nama_parfum, p.harga, p.stok, p.kategori,
             (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image,
             COALESCE(pvp.price, p.harga) as volume_price,
             COALESCE(pvp.stock, p.stok) as volume_stock
@@ -38,8 +48,8 @@ foreach ($cart_items as $item) {
 }
 
 $shipping = 0;
-if ($subtotal > 0 && $subtotal < 500000) {
-    $shipping = 0;
+if ($subtotal > 0 && $subtotal < $free_shipping_threshold) {
+    $shipping = $shipping_rate;
 }
 
 $total = $subtotal + $shipping;
@@ -182,11 +192,6 @@ $total = $subtotal + $shipping;
         .item-details h3 {
             margin-bottom: 0.5rem;
             font-size: 1.2rem;
-        }
-
-        .item-brand {
-            color: #666;
-            margin-bottom: 0.5rem;
         }
 
         .item-volume {
@@ -450,7 +455,6 @@ $total = $subtotal + $shipping;
                                 
                                 <div class="item-details">
                                     <h3><?= htmlspecialchars($item['nama_parfum']) ?></h3>
-                                    <div class="item-brand"><?= htmlspecialchars($item['brand']) ?></div>
                                     <div class="item-volume">📦 Volume: <?= $item['volume_selected'] ?> ml</div>
                                     <div class="item-price"><?= formatRupiah($item['volume_price']) ?></div>
                                     <?php if ($item['jumlah'] > $item['volume_stock']): ?>
@@ -495,9 +499,9 @@ $total = $subtotal + $shipping;
                             <span><?= $shipping > 0 ? formatRupiah($shipping) : 'GRATIS' ?></span>
                         </div>
 
-                        <?php if ($subtotal < 1000 && $subtotal > 0): ?>
+                        <?php if ($subtotal < $free_shipping_threshold && $subtotal > 0): ?>
                             <div style="font-size: 0.9rem; color: #667eea; margin: 1rem 0;">
-                                💡 Belanja Rp <?= formatRupiah(1000 - $subtotal) ?> lagi untuk gratis ongkir!
+                                💡 Belanja Rp <?= formatRupiah($free_shipping_threshold - $subtotal) ?> lagi untuk gratis ongkir!
                             </div>
                         <?php endif; ?>
                         

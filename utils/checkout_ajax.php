@@ -33,7 +33,7 @@ try {
     // Get cart items
     if (isLoggedIn()) {
         $stmt = $pdo->prepare("
-            SELECT c.*, p.nama_parfum, p.brand, p.harga, p.stok 
+            SELECT c.*, p.nama_parfum, p.harga, p.stok 
             FROM cart c 
             JOIN products p ON c.product_id = p.id 
             WHERE c.user_id = ?
@@ -41,7 +41,7 @@ try {
         $stmt->execute([getUserId()]);
     } else {
         $stmt = $pdo->prepare("
-            SELECT c.*, p.nama_parfum, p.brand, p.harga, p.stok 
+            SELECT c.*, p.nama_parfum, p.harga, p.stok 
             FROM cart c 
             JOIN products p ON c.product_id = p.id 
             WHERE c.session_id = ?
@@ -85,9 +85,10 @@ try {
     ]);
     
 } catch (Exception $e) {
+    error_log('Checkout AJAX error: ' . $e->getMessage());
     echo json_encode([
         'status' => 'error',
         'message' => $e->getMessage()
     ]);
 }
-// DO NOT ADD ?>
+?>

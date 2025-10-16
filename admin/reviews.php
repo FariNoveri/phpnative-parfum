@@ -3,7 +3,7 @@ session_start();
 require_once '../config/database.php'; // Sesuaikan path ke config/database.php
 
 // Fetch all reviews (pending, approved, rejected) untuk tampilan lengkap
-$sql = "SELECT pr.*, p.nama_parfum, p.brand 
+$sql = "SELECT pr.*, p.nama_parfum 
         FROM product_reviews pr 
         LEFT JOIN products p ON pr.product_id = p.id 
         ORDER BY pr.created_at DESC";
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Log admin action (opsional, tambah ke admin_logs)
+        // Log admin action
         $log_sql = "INSERT INTO admin_logs (admin_id, action, description) VALUES (?, ?, ?)";
         $pdo->prepare($log_sql)->execute([$_SESSION['user_id'] ?? 1, strtoupper($action), "Review ID: $review_id"]);
         
@@ -125,7 +125,6 @@ function updateProductRating($pdo, $product_id, $delta) {
 </head>
 <body>
     <div class="admin-container">
-        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="admin-logo">🌸</div>
@@ -137,56 +136,53 @@ function updateProductRating($pdo, $product_id, $delta) {
                 <ul class="nav-menu">
                     <li class="nav-item">
                         <a href="dashboard.php" class="nav-link">
-                            <span class="nav-icon">📊</span>
-                            Dashboard
+                            <span class="nav-icon">📊</span> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="products.php" class="nav-link">
-                            <span class="nav-icon">🧴</span>
-                            Kelola Produk
+                            <span class="nav-icon">🧴</span> Kelola Produk
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="orders.php" class="nav-link">
-                            <span class="nav-icon">📦</span>
-                            Kelola Pesanan
+                            <span class="nav-icon">📦</span> Kelola Pesanan
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="reviews.php" class="nav-link active">
-                            <span class="nav-icon">⭐</span>
-                            Kelola Review
+                            <span class="nav-icon">⭐</span> Kelola Review
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="users.php" class="nav-link">
-                            <span class="nav-icon">👥</span>
-                            Kelola User
+                            <span class="nav-icon">👥</span> Kelola User
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="reports.php" class="nav-link">
-                            <span class="nav-icon">📈</span>
-                            Laporan
+                            <span class="nav-icon">📈</span> Laporan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="settings.php" class="nav-link">
+                            <span class="nav-icon">⚙️</span> Pengaturan
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="../index.php" class="nav-link" target="_blank">
-                            <span class="nav-icon">🌐</span>
-                            Lihat Website
+                            <span class="nav-icon">🌐</span> Lihat Website
                         </a>
                     </li>
                 </ul>
             </nav>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
             <div class="top-bar">
                 <h1 class="page-title">Kelola Review</h1>
                 <div class="user-info">
-                    <span>Selamat datang, <strong><?= $_SESSION['user_name'] ?? 'Admin' ?></strong></span>
+                    <span><?= $_SESSION['user_name'] ?? 'Admin' ?></span>
                     <a href="../logout.php" class="logout-btn">Logout</a>
                 </div>
             </div>
@@ -216,7 +212,7 @@ function updateProductRating($pdo, $product_id, $delta) {
                         <?php foreach ($reviews as $review): ?>
                             <tr>
                                 <td><?= $review['id'] ?></td>
-                                <td><?= htmlspecialchars($review['nama_parfum'] ?? 'N/A') ?> (<?= htmlspecialchars($review['brand'] ?? '') ?>)</td>
+                                <td><?= htmlspecialchars($review['nama_parfum'] ?? 'N/A') ?></td>
                                 <td><?= htmlspecialchars($review['customer_name']) ?></td>
                                 <td><?= str_repeat('⭐', $review['rating']) ?></td>
                                 <td><?= htmlspecialchars($review['review_title'] ?? 'N/A') ?></td>
