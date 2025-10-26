@@ -9,8 +9,8 @@ $settings = [];
 while ($row = $settings_stmt->fetch(PDO::FETCH_ASSOC)) {
     $settings[$row['key']] = $row['value'];
 }
-$shipping_rate = (int)($settings['shipping_rate'] ?? 15000);  // Default jika belum ada
-$free_shipping_threshold = (int)($settings['free_shipping_threshold'] ?? 500000);  // Default jika belum ada
+$shipping_rate = (int)($settings['shipping_rate'] ?? 15000);
+$free_shipping_threshold = (int)($settings['free_shipping_threshold'] ?? 500000);
 
 // Fetch cart items with volume information
 if (isLoggedIn()) {
@@ -54,6 +54,9 @@ if ($subtotal > 0 && $subtotal < $free_shipping_threshold) {
 
 $total = $subtotal + $shipping;
 
+// Get cart count
+$cart_count = array_sum(array_column($cart_items, 'jumlah'));
+
 ?>
 
 <!DOCTYPE html>
@@ -61,7 +64,7 @@ $total = $subtotal + $shipping;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keranjang Belanja - Parfum Refill Premium</title>
+    <title>Shopping Cart - Parfum Refill Premium</title>
     <style>
         * {
             margin: 0;
@@ -72,21 +75,30 @@ $total = $subtotal + $shipping;
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
         }
         
+        /* Top Bar */
+        .top-bar {
+            background: #f8f8f8;
+            padding: 8px 0;
+            font-size: 12px;
+            text-align: center;
+            color: #666;
+        }
+        
+        /* Header */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -96,298 +108,430 @@ $total = $subtotal + $shipping;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
         }
         
         .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            text-decoration: none;
         }
         
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 35px;
             align-items: center;
         }
         
         .nav-links a {
-            color: white;
+            color: #2c2c2c;
             text-decoration: none;
-            transition: opacity 0.3s;
-            padding: 0.5rem;
-            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 400;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .nav-links a:hover {
-            background: rgba(255,255,255,0.2);
+            color: #c41e3a;
+        }
+        
+        .cart-icon {
+            position: relative;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #c41e3a;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
         }
 
         .cart-section {
-            padding: 3rem 0;
+            padding: 60px 0;
         }
 
         .cart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 40px;
         }
 
         .cart-header h1 {
-            font-size: 2rem;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #2c2c2c;
+            text-transform: uppercase;
         }
 
         .continue-shopping {
-            background: #6c757d;
-            color: white;
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 5px;
+            background: transparent;
+            color: #666;
+            padding: 12px 30px;
+            border: 1px solid #e0e0e0;
             cursor: pointer;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
             text-decoration: none;
             display: inline-block;
-            transition: all 0.3s;
         }
 
         .continue-shopping:hover {
-            background: #5a6268;
+            border-color: #2c2c2c;
+            color: #2c2c2c;
         }
 
         .cart-content {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 2rem;
+            gap: 40px;
         }
 
         .cart-items {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            background: #fafafa;
+            border: 1px solid #f0f0f0;
+            padding: 30px;
         }
 
         .cart-item {
             display: grid;
-            grid-template-columns: 100px 1fr auto;
-            gap: 1.5rem;
-            padding: 1.5rem 0;
-            border-bottom: 1px solid #eee;
+            grid-template-columns: 120px 1fr auto;
+            gap: 25px;
+            padding: 25px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .cart-item:first-child {
+            padding-top: 0;
         }
 
         .cart-item:last-child {
             border-bottom: none;
+            padding-bottom: 0;
         }
 
         .item-image {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             object-fit: cover;
-            border-radius: 8px;
+            background: white;
         }
 
         .item-details h3 {
-            margin-bottom: 0.5rem;
-            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c2c2c;
         }
 
         .item-volume {
-            color: #667eea;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
         }
 
         .item-price {
-            color: #e74c3c;
-            font-weight: bold;
-            font-size: 1.1rem;
+            color: #c41e3a;
+            font-weight: 400;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .item-stock-warning {
+            color: #c41e3a;
+            font-size: 12px;
+            margin-top: 8px;
         }
 
         .item-actions {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 1rem;
+            gap: 15px;
         }
 
         .quantity-control {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 15px;
         }
 
         .quantity-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            width: 30px;
-            height: 30px;
-            border-radius: 5px;
+            background: white;
+            color: #2c2c2c;
+            border: 1px solid #e0e0e0;
+            width: 35px;
+            height: 35px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 16px;
             transition: all 0.3s;
+            font-weight: 300;
         }
 
-        .quantity-btn:hover {
-            background: #764ba2;
+        .quantity-btn:hover:not(:disabled) {
+            background: #2c2c2c;
+            color: white;
+            border-color: #2c2c2c;
+        }
+
+        .quantity-btn:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+            opacity: 0.5;
         }
 
         .quantity-input {
             width: 60px;
             text-align: center;
-            padding: 0.3rem;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            font-size: 14px;
         }
 
         .remove-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
+            background: transparent;
+            color: #999;
+            border: 1px solid #e0e0e0;
+            padding: 8px 20px;
             cursor: pointer;
             transition: all 0.3s;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .remove-btn:hover {
-            background: #c0392b;
+            background: #c41e3a;
+            color: white;
+            border-color: #c41e3a;
         }
 
         .cart-summary {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            background: #fafafa;
+            border: 1px solid #f0f0f0;
+            padding: 30px;
             height: fit-content;
             position: sticky;
             top: 100px;
         }
 
         .cart-summary h2 {
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #eee;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #2c2c2c;
         }
 
         .summary-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 1rem;
-            padding: 0.5rem 0;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .summary-row span:last-child {
+            font-weight: 500;
+            color: #2c2c2c;
         }
 
         .summary-row.total {
-            border-top: 2px solid #eee;
-            padding-top: 1rem;
-            margin-top: 1rem;
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #667eea;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c2c2c;
+        }
+
+        .free-shipping-info {
+            font-size: 12px;
+            color: #2c2c2c;
+            background: white;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-left: 3px solid #2c2c2c;
         }
 
         .checkout-btn {
             width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #2c2c2c;
             color: white;
             border: none;
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 18px 40px;
             cursor: pointer;
-            font-size: 1.2rem;
-            margin-top: 1rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             transition: all 0.3s;
+            font-weight: 600;
         }
 
-        .checkout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        .checkout-btn:hover:not(:disabled) {
+            background: #c41e3a;
         }
 
         .checkout-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
-            transform: none;
         }
 
         .empty-cart {
             text-align: center;
-            padding: 4rem 2rem;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            padding: 80px 40px;
+            background: #fafafa;
+            border: 1px solid #f0f0f0;
         }
 
         .empty-cart-icon {
-            font-size: 5rem;
-            margin-bottom: 1rem;
+            font-size: 80px;
+            margin-bottom: 25px;
+            opacity: 0.3;
         }
 
         .empty-cart h2 {
-            margin-bottom: 1rem;
-            color: #666;
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 15px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .message {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
+        .empty-cart p {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 30px;
         }
 
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            border-left: 3px solid;
+            font-size: 14px;
         }
 
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .alert.success {
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #22c55e;
         }
 
+        .alert.error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
+        }
+
+        /* Footer */
         footer {
-            background: #2c3e50;
-            color: white;
-            padding: 3rem 0 1rem;
-            margin-top: 4rem;
+            background: #f8f8f8;
+            padding: 60px 0 30px;
+            margin-top: 80px;
         }
         
         .footer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
+            gap: 40px;
+            margin-bottom: 40px;
         }
         
         .footer-section h3 {
-            margin-bottom: 1rem;
-            color: #ecf0f1;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
         }
         
-        .footer-section p, .footer-section a {
-            color: #bdc3c7;
+        .footer-section p,
+        .footer-section a {
+            font-size: 13px;
+            color: #666;
             text-decoration: none;
-            line-height: 1.8;
+            line-height: 2;
+            display: block;
+        }
+        
+        .footer-section a:hover {
+            color: #c41e3a;
         }
         
         .footer-bottom {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 30px;
             text-align: center;
-            padding-top: 2rem;
-            border-top: 1px solid #34495e;
-            color: #bdc3c7;
+        }
+        
+        .footer-bottom p {
+            font-size: 12px;
+            color: #999;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
             .cart-content {
                 grid-template-columns: 1fr;
             }
 
+            .cart-summary {
+                position: static;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                gap: 15px;
+            }
+            
+            .nav-links a {
+                font-size: 12px;
+            }
+
+            .cart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+
+            .cart-header h1 {
+                font-size: 24px;
+            }
+
             .cart-item {
                 grid-template-columns: 80px 1fr;
+            }
+
+            .item-image {
+                width: 80px;
+                height: 80px;
             }
 
             .item-actions {
@@ -395,30 +539,37 @@ $total = $subtotal + $shipping;
                 flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
-            }
-
-            .cart-summary {
-                position: static;
+                margin-top: 15px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
+    </div>
+
+    <!-- Header -->
     <header>
         <nav class="container">
-            <div class="logo">
-                <span>🌸</span> Parfum Refill Premium
-            </div>
+            <a href="index.php" class="logo">Parfum Refill</a>
             <div class="nav-links">
-                <a href="index.php">Beranda</a>
+                <a href="index.php">Home</a>
                 <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Profil</a>
-                    <a href="orders.php">Pesanan</a>
+                    <a href="profile.php">Account</a>
+                    <a href="orders.php">Orders</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
-                    <a href="register.php">Daftar</a>
+                    <a href="register.php">Register</a>
                 <?php endif; ?>
+                <a href="cart.php" class="cart-icon">
+                    🛒
+                    <?php if ($cart_count > 0): ?>
+                        <span class="cart-count"><?= $cart_count ?></span>
+                    <?php endif; ?>
+                </a>
             </div>
         </nav>
     </header>
@@ -426,40 +577,40 @@ $total = $subtotal + $shipping;
     <section class="cart-section">
         <div class="container">
             <?php if (isset($_SESSION['message'])): ?>
-                <div class="message <?= $_SESSION['message_type'] ?? 'success' ?>">
+                <div class="alert <?= $_SESSION['message_type'] ?? 'success' ?>">
                     <?= htmlspecialchars($_SESSION['message']) ?>
                 </div>
                 <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
             <?php endif; ?>
 
             <div class="cart-header">
-                <h1>🛒 Keranjang Belanja</h1>
-                <a href="index.php" class="continue-shopping">← Lanjut Belanja</a>
+                <h1>Shopping Cart</h1>
+                <a href="index.php" class="continue-shopping">← Continue Shopping</a>
             </div>
 
             <?php if (empty($cart_items)): ?>
                 <div class="empty-cart">
                     <div class="empty-cart-icon">🛒</div>
-                    <h2>Keranjang Anda Kosong</h2>
-                    <p>Belum ada produk yang ditambahkan ke keranjang</p>
-                    <a href="index.php" class="continue-shopping" style="display: inline-block; margin-top: 1rem;">Mulai Belanja</a>
+                    <h2>Your Cart is Empty</h2>
+                    <p>No products added to cart yet</p>
+                    <a href="index.php" class="continue-shopping" style="display: inline-block; margin-top: 1rem;">Start Shopping</a>
                 </div>
             <?php else: ?>
                 <div class="cart-content">
                     <div class="cart-items">
                         <?php foreach ($cart_items as $item): ?>
                             <div class="cart-item">
-                                <img src="<?= htmlspecialchars($item['primary_image'] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2NjYyIvPjwvc3ZnPg==') ?>" 
+                                <img src="<?= htmlspecialchars($item['primary_image'] ?? 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22120%22 height=%22120%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2260%22%3E🧴%3C/text%3E%3C/svg%3E') ?>" 
                                      alt="<?= htmlspecialchars($item['nama_parfum']) ?>" 
                                      class="item-image">
                                 
                                 <div class="item-details">
                                     <h3><?= htmlspecialchars($item['nama_parfum']) ?></h3>
-                                    <div class="item-volume">📦 Volume: <?= $item['volume_selected'] ?> ml</div>
+                                    <div class="item-volume">Volume: <?= $item['volume_selected'] ?> ml</div>
                                     <div class="item-price"><?= formatRupiah($item['volume_price']) ?></div>
                                     <?php if ($item['jumlah'] > $item['volume_stock']): ?>
-                                        <div style="color: #e74c3c; font-size: 0.9rem; margin-top: 0.5rem;">
-                                            ⚠️ Stok hanya tersedia: <?= $item['volume_stock'] ?>
+                                        <div class="item-stock-warning">
+                                            ⚠️ Stock available: <?= $item['volume_stock'] ?>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -467,18 +618,20 @@ $total = $subtotal + $shipping;
                                 <div class="item-actions">
                                     <form method="POST" action="utils/update_cart.php" class="quantity-control">
                                         <input type="hidden" name="cart_id" value="<?= $item['id'] ?>">
-                                        <button type="submit" name="action" value="decrease" class="quantity-btn">−</button>
+                                        <button type="submit" name="action" value="decrease" class="quantity-btn" 
+                                                <?= $item['jumlah'] <= 1 ? 'disabled' : '' ?>>−</button>
                                         <input type="number" name="jumlah" value="<?= $item['jumlah'] ?>" 
                                                min="1" max="<?= $item['volume_stock'] ?>" 
                                                class="quantity-input" readonly>
-                                        <button type="submit" name="action" value="increase" class="quantity-btn">+</button>
+                                        <button type="submit" name="action" value="increase" class="quantity-btn"
+                                                <?= $item['jumlah'] >= $item['volume_stock'] ? 'disabled' : '' ?>>+</button>
                                     </form>
                                     
                                     <form method="POST" action="remove_from_cart.php">
                                         <input type="hidden" name="cart_id" value="<?= $item['id'] ?>">
                                         <button type="submit" class="remove-btn" 
-                                                onclick="return confirm('Hapus produk dari keranjang?')">
-                                            🗑️ Hapus
+                                                onclick="return confirm('Remove product from cart?')">
+                                            Remove
                                         </button>
                                     </form>
                                 </div>
@@ -487,21 +640,21 @@ $total = $subtotal + $shipping;
                     </div>
 
                     <div class="cart-summary">
-                        <h2>Ringkasan Pesanan</h2>
+                        <h2>Order Summary</h2>
                         
                         <div class="summary-row">
-                            <span>Subtotal (<?= count($cart_items) ?> item)</span>
+                            <span>Subtotal (<?= count($cart_items) ?> items)</span>
                             <span><?= formatRupiah($subtotal) ?></span>
                         </div>
                         
                         <div class="summary-row">
-                            <span>Ongkos Kirim</span>
-                            <span><?= $shipping > 0 ? formatRupiah($shipping) : 'GRATIS' ?></span>
+                            <span>Shipping</span>
+                            <span><?= $shipping > 0 ? formatRupiah($shipping) : 'FREE' ?></span>
                         </div>
 
                         <?php if ($subtotal < $free_shipping_threshold && $subtotal > 0): ?>
-                            <div style="font-size: 0.9rem; color: #667eea; margin: 1rem 0;">
-                                💡 Belanja Rp <?= formatRupiah($free_shipping_threshold - $subtotal) ?> lagi untuk gratis ongkir!
+                            <div class="free-shipping-info">
+                                Shop Rp <?= formatRupiah($free_shipping_threshold - $subtotal) ?> more for free shipping!
                             </div>
                         <?php endif; ?>
                         
@@ -512,7 +665,7 @@ $total = $subtotal + $shipping;
                         
                         <a href="checkout.php">
                             <button class="checkout-btn">
-                                Lanjut ke Pembayaran →
+                                Proceed to Checkout
                             </button>
                         </a>
                     </div>
@@ -521,22 +674,33 @@ $total = $subtotal + $shipping;
         </div>
     </section>
 
+    <!-- Footer -->
     <footer>
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h3>🌸 Parfum Refill Premium</h3>
-                    <p>Toko parfum refill terpercaya dengan kualitas original dan harga terjangkau.</p>
+                    <h3>About Us</h3>
+                    <p>Premium refill perfumes with authentic quality and affordable prices. 100% customer satisfaction guaranteed.</p>
                 </div>
                 <div class="footer-section">
-                    <h3>Layanan Pelanggan</h3>
-                    <p><a href="tel:+6281234567890">📞 +62812-3456-7890</a></p>
-                    <p><a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a></p>
+                    <h3>Customer Service</h3>
+                    <a href="tel:+6281234567890">📞 +62812-3456-7890</a>
+                    <a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a>
+                    <p>🕒 Mon - Sat: 09:00 - 21:00</p>
                 </div>
                 <div class="footer-section">
-                    <h3>Jaminan Kualitas</h3>
-                    <p>✅ 100% Aroma Original</p>
-                    <p>🚚 Gratis Ongkir min. Rp 500K</p>
+                    <h3>Quick Links</h3>
+                    <a href="#">Track Order</a>
+                    <a href="#">Shipping Info</a>
+                    <a href="#">Return Policy</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Our Guarantee</h3>
+                    <p>✅ 100% Original Scent</p>
+                    <p>🛡️ Money Back Guarantee</p>
+                    <p>🚚 Free Shipping (min. Rp 500K)</p>
+                    <p>⭐ 4.8/5 Rating from 1000+ reviews</p>
                 </div>
             </div>
             <div class="footer-bottom">

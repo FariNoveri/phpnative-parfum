@@ -31,8 +31,6 @@ if ($_POST) {
     $season = trim($_POST['season'] ?? '');
     $occasion = trim($_POST['occasion'] ?? '');
     $tags = trim($_POST['tags'] ?? '');
-    $is_refill = (int)($_POST['is_refill'] ?? 0);
-    $gambar = $_POST['gambar'] ?? [];
 
     if (!is_array($gambar)) {
         $gambar = [];
@@ -79,8 +77,8 @@ if ($_POST) {
         }
 
         if ($action === 'add') {
-            $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, harga, original_price, discount_percentage, stok, deskripsi, kategori, volume_ml, scent_notes, longevity_hours, sillage, season, occasion, tags, is_refill) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            if ($stmt->execute([$nama_parfum, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill])) {
+            $stmt = $pdo->prepare("INSERT INTO products (nama_parfum, harga, original_price, discount_percentage, stok, deskripsi, kategori, volume_ml, scent_notes, longevity_hours, sillage, season, occasion, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if ($stmt->execute([$nama_parfum, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags])) {
                 $new_id = $pdo->lastInsertId();
 
                 // Insert images
@@ -108,8 +106,8 @@ if ($_POST) {
         }
 
         if ($action === 'edit' && $product_id > 0 && empty($error)) {
-            $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, harga = ?, original_price = ?, discount_percentage = ?, stok = ?, deskripsi = ?, kategori = ?, volume_ml = ?, scent_notes = ?, longevity_hours = ?, sillage = ?, season = ?, occasion = ?, tags = ?, is_refill = ? WHERE id = ?");
-            if ($stmt->execute([$nama_parfum, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $is_refill, $product_id])) {
+            $stmt = $pdo->prepare("UPDATE products SET nama_parfum = ?, harga = ?, original_price = ?, discount_percentage = ?, stok = ?, deskripsi = ?, kategori = ?, volume_ml = ?, scent_notes = ?, longevity_hours = ?, sillage = ?, season = ?, occasion = ?, tags = ? WHERE id = ?");
+            if ($stmt->execute([$nama_parfum, $harga, $original_price, $discount_percentage, $stok, $deskripsi, $kategori, $first_volume['ml'] ?? 100, $scent_notes, $longevity_hours, $sillage, $season, $occasion, $tags, $product_id])) {
                 // Delete and insert new images
                 $stmt_img_del = $pdo->prepare("DELETE FROM product_images WHERE product_id = ?");
                 $stmt_img_del->execute([$product_id]);
@@ -276,9 +274,10 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         body {
-            font-family: 'Arial', sans-serif;
-            background: #f8f9fa;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .admin-container {
@@ -286,36 +285,44 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             min-height: 100vh;
         }
         
+        /* Sidebar */
         .sidebar {
             width: 280px;
-            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
+            background: #fff;
+            color: #2c2c2c;
             padding: 2rem 1rem;
             position: fixed;
             height: 100vh;
             overflow-y: auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
         .sidebar-header {
             text-align: center;
             margin-bottom: 3rem;
             padding-bottom: 2rem;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .admin-logo {
-            font-size: 2rem;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
             margin-bottom: 0.5rem;
         }
         
         .admin-title {
             font-size: 1.2rem;
-            opacity: 0.9;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .admin-name {
             font-size: 0.9rem;
-            opacity: 0.7;
+            color: #999;
             margin-top: 0.5rem;
         }
         
@@ -330,19 +337,23 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         .nav-link {
             display: flex;
             align-items: center;
-            color: white;
+            color: #2c2c2c;
             text-decoration: none;
             padding: 1rem;
-            border-radius: 10px;
+            border-radius: 5px;
             transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             opacity: 0.8;
         }
         
         .nav-link:hover,
         .nav-link.active {
-            background: rgba(255,255,255,0.2);
+            background: #ffeef5;
             opacity: 1;
-            transform: translateX(5px);
+            color: #c41e3a;
         }
         
         .nav-icon {
@@ -350,17 +361,18 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             font-size: 1.2rem;
         }
         
+        /* Main Content */
         .main-content {
             flex: 1;
             margin-left: 280px;
             padding: 2rem;
         }
         
+        /* Top Bar */
         .top-bar {
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
@@ -368,8 +380,10 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         .page-title {
-            font-size: 2rem;
-            color: #333;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #2c2c2c;
             margin: 0;
         }
         
@@ -380,28 +394,33 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         .logout-btn {
-            background: #e74c3c;
+            background: #c41e3a;
             color: white;
-            padding: 0.7rem 1.5rem;
+            padding: 10px 20px;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             text-decoration: none;
-            transition: background 0.3s;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            cursor: pointer;
         }
         
         .logout-btn:hover {
-            background: #c0392b;
+            background: #a01628;
         }
         
         .content-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             overflow: hidden;
+            margin-bottom: 2rem;
         }
         
         .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #c41e3a 0%, #a01628 100%);
             color: white;
             padding: 1.5rem 2rem;
             display: flex;
@@ -411,54 +430,57 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .card-title {
             font-size: 1.3rem;
-            font-weight: bold;
+            font-weight: 300;
+            letter-spacing: 0.5px;
         }
         
         .btn {
-            background: #667eea;
+            background: #c41e3a;
             color: white;
-            padding: 0.8rem 1.5rem;
+            padding: 12px 30px;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
             transition: all 0.3s;
-            font-weight: 500;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 400;
         }
         
         .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
+            background: #a01628;
         }
         
         .btn-success {
-            background: #27ae60;
+            background: #c41e3a;
         }
         
         .btn-success:hover {
-            background: #229954;
+            background: #a01628;
         }
         
         .btn-danger {
-            background: #e74c3c;
+            background: #c41e3a;
         }
         
         .btn-danger:hover {
-            background: #c0392b;
+            background: #a01628;
         }
         
         .btn-warning {
-            background: #f39c12;
+            background: #c41e3a;
         }
         
         .btn-warning:hover {
-            background: #e67e22;
+            background: #a01628;
         }
         
         .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: 8px 20px;
+            font-size: 12px;
         }
         
         .form-container {
@@ -478,26 +500,31 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         .form-group label {
-            font-weight: bold;
+            font-weight: 400;
             margin-bottom: 0.5rem;
-            color: #555;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .form-group input,
         .form-group textarea,
         .form-group select {
-            padding: 0.8rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            background: #fafafa;
+            transition: all 0.3s;
         }
         
         .form-group input:focus,
         .form-group textarea:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #c41e3a;
+            background: #fff;
         }
         
         .form-group textarea {
@@ -507,7 +534,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .filters {
             padding: 2rem;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .filter-form {
@@ -529,48 +556,55 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .products-table th,
         .products-table td {
-            padding: 1rem;
+            padding: 15px 10px;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .products-table th {
-            background: #f8f9fa;
-            font-weight: bold;
-            color: #555;
+            background: #fafafa;
+            font-weight: 400;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .products-table tr:hover {
-            background: #f8f9fa;
+            background: #ffeef5;
         }
         
         .product-image {
             width: 50px;
             height: 50px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border-radius: 8px;
+            background: #fafafa;
+            border-radius: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: #999;
             font-size: 1.5rem;
         }
         
         .product-name {
-            font-weight: bold;
-            margin-bottom: 0.25rem;
+            font-weight: 400;
+            margin-bottom: 5px;
+            color: #2c2c2c;
+            font-size: 15px;
         }
         
         .product-brand {
-            color: #666;
-            font-size: 0.9rem;
+            color: #999;
+            font-size: 12px;
         }
         
         .stock-badge {
-            padding: 0.3rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: bold;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .stock-high {
@@ -590,33 +624,35 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 10px;
         }
         
         .alert {
-            padding: 1rem;
-            margin-bottom: 2rem;
-            border-radius: 8px;
-            border: 1px solid;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 3px solid;
+            font-size: 14px;
+            border-radius: 5px;
         }
         
         .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #22c55e;
         }
         
         .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
         }
         
         .image-upload-container {
-            border: 2px dashed #e1e1e1;
-            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
             padding: 1rem;
             text-align: center;
+            background: #fafafa;
         }
         
         #imagesContainer {
@@ -636,7 +672,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             width: 100px;
             height: 100px;
             object-fit: cover;
-            border-radius: 8px;
+            border-radius: 5px;
             display: block;
         }
         
@@ -644,7 +680,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             position: absolute;
             top: 5px;
             right: 5px;
-            background: #e74c3c;
+            background: #c41e3a;
             color: white;
             border: none;
             border-radius: 50%;
@@ -656,14 +692,14 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         .image-preview button:hover {
-            background: #c0392b;
+            background: #a01628;
         }
         
         .upload-section {
-            border: 1px solid #eee;
+            border: 1px solid #e0e0e0;
             padding: 1rem;
-            border-radius: 8px;
-            background: #f9f9f9;
+            border-radius: 5px;
+            background: #fff;
         }
         
         .upload-methods {
@@ -675,17 +711,17 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .upload-method {
             padding: 0.5rem 1rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 8px;
-            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background: #fafafa;
             cursor: pointer;
             transition: all 0.3s;
         }
         
         .upload-method.active {
-            border-color: #667eea;
-            background: #f0f4ff;
-            color: #667eea;
+            border-color: #c41e3a;
+            background: #ffeef5;
+            color: #c41e3a;
         }
         
         .url-input-container {
@@ -700,10 +736,11 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .url-input {
             flex: 1;
-            padding: 0.8rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            background: #fafafa;
         }
         
         .upload-controls {
@@ -729,7 +766,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         
         .progress-fill {
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #c41e3a 0%, #a01628 100%);
             width: 0%;
             transition: width 0.3s;
         }
@@ -740,7 +777,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
 
         .max-reached {
-            color: #e74c3c;
+            color: #c41e3a;
             font-style: italic;
             margin-top: 0.5rem;
         }
@@ -750,13 +787,18 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
             gap: 1rem;
             margin-bottom: 1rem;
             padding: 1rem;
-            border: 1px solid #eee;
-            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
             align-items: center;
+            background: #fafafa;
         }
 
         .volume-row input {
             flex: 1;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background: #fff;
         }
 
         .volume-row label {
@@ -767,6 +809,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
+                transition: transform 0.3s;
             }
             .main-content {
                 margin-left: 0;
@@ -797,12 +840,13 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
     </style>
 </head>
 <body>
+
     <div class="admin-container">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="admin-logo">🌸</div>
+                <div class="admin-logo">Parfum Refill</div>
                 <div class="admin-title">Admin Panel</div>
-                <div class="admin-name">👋 <?= $_SESSION['user_name'] ?></div>
+                <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
             </div>
             
             <nav>
@@ -819,7 +863,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                     </li>
                     <li class="nav-item">
                         <a href="orders.php" class="nav-link">
-                            <span class="nav-icon">📦</span> Kelola Pesanan
+                            <span class="nav-icon">🛒</span> Kelola Pesanan
                         </a>
                     </li>
                     <li class="nav-item">
@@ -863,7 +907,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                     <?php endif; ?>
                 </h1>
                 <div class="user-info">
-                    <span><?= $_SESSION['user_name'] ?></span>
+                    <span>Selamat datang, <strong><?= $_SESSION['user_name'] ?></strong></span>
                     <a href="../logout.php" class="logout-btn">Logout</a>
                 </div>
             </div>
@@ -950,7 +994,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                                     <input type="number" name="volumes[<?= $idx ?>][stock]" placeholder="Stok" min="0" required
                                                            value="<?= $vol['stock'] ?? '' ?>">
                                                     <label><input type="checkbox" name="volumes[<?= $idx ?>][available]" <?= isset($vol['available']) && $vol['available'] ? 'checked' : '' ?>> Available</label>
-                                                    <button type="button" onclick="removeVolumeRow(this)" style="background: #e74c3c; color: white; border: none; padding: 0.5rem; border-radius: 4px;">Remove</button>
+                                                    <button type="button" onclick="removeVolumeRow(this)" style="background: #c41e3a; color: white; border: none; padding: 0.5rem; border-radius: 4px;">Remove</button>
                                                 </div>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
@@ -962,8 +1006,15 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="scent_notes">Scent Notes</label>
-                                    <input type="text" id="scent_notes" name="scent_notes"
-                                           value="<?= htmlspecialchars($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') ?>">
+                                    <select id="scent_notes" name="scent_notes">
+                                        <option value="">Pilih Scent Notes</option>
+                                        <option value="citrus" <?= ($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') === 'citrus' ? 'selected' : '' ?>>Citrus</option>
+                                        <option value="floral" <?= ($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') === 'floral' ? 'selected' : '' ?>>Floral</option>
+                                        <option value="oriental" <?= ($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') === 'oriental' ? 'selected' : '' ?>>Oriental</option>
+                                        <option value="woody" <?= ($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') === 'woody' ? 'selected' : '' ?>>Woody</option>
+                                        <option value="fresh" <?= ($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') === 'fresh' ? 'selected' : '' ?>>Fresh</option>
+                                        <option value="gourmand" <?= ($form_data['scent_notes'] ?? $product['scent_notes'] ?? '') === 'gourmand' ? 'selected' : '' ?>>Gourmand</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="longevity_hours">Longevity (Jam)</label>
@@ -1000,16 +1051,6 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                 </div>
                             </div>
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="is_refill">Refill?</label>
-                                    <select id="is_refill" name="is_refill">
-                                        <option value="1" <?= ($form_data['is_refill'] ?? $product['is_refill'] ?? 1) == 1 ? 'selected' : '' ?>>Ya</option>
-                                        <option value="0" <?= ($form_data['is_refill'] ?? $product['is_refill'] ?? 1) == 0 ? 'selected' : '' ?>>Tidak</option>
-                                    </select>
-                                </div>
-                            </div>
-
                             <div class="form-group">
                                 <label for="deskripsi">Deskripsi</label>
                                 <textarea id="deskripsi" name="deskripsi"><?= htmlspecialchars($form_data['deskripsi'] ?? $product['deskripsi'] ?? '') ?></textarea>
@@ -1021,7 +1062,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                 <div id="imagesContainer">
                                     <?php foreach ($current_images as $img): if (!empty($img)): ?>
                                         <div class="image-preview">
-                                            <img src="<?= htmlspecialchars($img) ?>" alt="Product image" onerror="this.src='<?= $placeholder_svg ?>';" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+                                            <img src="<?= htmlspecialchars($img) ?>" alt="Product image" onerror="this.src='<?= $placeholder_svg ?>';" style="width:100px;height:100px;object-fit:cover;border-radius:5px;">
                                             <button type="button" onclick="removeImage(this)">×</button>
                                             <input type="hidden" name="gambar[]" value="<?= htmlspecialchars($img) ?>">
                                         </div>
@@ -1066,7 +1107,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                     </div>
                                 </div>
                                 
-                                <small style="color: #666; margin-top: 0.5rem; display: block;">
+                                <small style="color: #999; margin-top: 0.5rem; display: block;">
                                     Format: JPG, PNG, GIF, WEBP. Maksimal 5MB per file.
                                     <br>Untuk URL: pastikan link mengarah langsung ke file gambar.
                                 </small>
@@ -1124,7 +1165,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                         const div = document.createElement('div');
                         div.className = 'image-preview';
                         div.innerHTML = `
-                            <img src="${url}" alt="Product image" onerror="this.src='<?= $placeholder_svg ?>';" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+                            <img src="${url}" alt="Product image" onerror="this.src='<?= $placeholder_svg ?>';" style="width:100px;height:100px;object-fit:cover;border-radius:5px;">
                             <button type="button" onclick="removeImage(this)">×</button>
                             <input type="hidden" name="gambar[]" value="${url}">
                         `;
@@ -1254,7 +1295,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                             <input type="number" name="volumes[${volumeIndex}][price]" placeholder="Harga (Rp)" min="0" step="1000" required style="flex:1;">
                             <input type="number" name="volumes[${volumeIndex}][stock]" placeholder="Stok" min="0" required style="flex:1;">
                             <label style="white-space: nowrap;"><input type="checkbox" name="volumes[${volumeIndex}][available]" checked> Available</label>
-                            <button type="button" onclick="removeVolumeRow(this)" style="background: #e74c3c; color: white; border: none; padding: 0.5rem; border-radius: 4px;">Remove</button>
+                            <button type="button" onclick="removeVolumeRow(this)" style="background: #c41e3a; color: white; border: none; padding: 0.5rem; border-radius: 4px;">Remove</button>
                         `;
                         container.appendChild(row);
                         volumeIndex++;
@@ -1343,18 +1384,19 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                             </div>
                             <div class="form-group">
                                 <label>&nbsp;</label>
-                                <a href="products.php" class="btn btn-warning">🔄 Reset</a>
+                                <a href="products.php" class="btn btn-secondary">🔄 Reset</a>
                             </div>
                         </form>
                     </div>
                     
                     <div class="table-container">
                         <?php if (empty($products)): ?>
-                            <div style="text-align: center; padding: 3rem; color: #666;">
-                                <h3>Tidak ada produk ditemukan</h3>
+                            <div style="text-align: center; padding: 80px 20px;">
+                                <h3>🔍 Tidak ada produk ditemukan</h3>
                                 <p>Silakan tambah produk baru atau ubah filter pencarian</p>
-                                <br>
-                                <a href="products.php?action=add" class="btn btn-success">➕ Tambah Produk Pertama</a>
+                                <div style="margin-top: 2rem;">
+                                    <a href="products.php?action=add" class="btn btn-success">➕ Tambah Produk Pertama</a>
+                                </div>
                             </div>
                         <?php else: ?>
                             <table class="products-table">
@@ -1380,12 +1422,12 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                                         if ($first_img && filter_var($first_img, FILTER_VALIDATE_URL)): ?>
                                                             <img src="<?= htmlspecialchars($first_img) ?>" 
                                                                  alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
-                                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;"
+                                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;"
                                                                  onerror="this.src='<?= $placeholder_svg ?>';">
                                                         <?php else: ?>
                                                             <img src="<?= $placeholder_svg ?>" 
                                                                  alt="<?= htmlspecialchars($product['nama_parfum']) ?>" 
-                                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">
                                                         <?php endif; ?>
                                                     </div>
                                                     <div>
@@ -1395,16 +1437,14 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                                 </div>
                                             </td>
                                             <td>
-                                                <strong><?= formatRupiah($product['harga']) ?></strong>
+                                                <span class="current-price"><?= formatRupiah($product['harga']) ?></span>
                                                 <?php if (!$product['has_volumes'] && $product['discount_percentage'] > 0): ?>
-                                                    <span style="color: #999; text-decoration: line-through; margin-left: 0.5rem;">
-                                                        <?= formatRupiah($product['original_price'] ?? $product['harga']) ?>
-                                                    </span>
+                                                    <span class="original-price"><?= formatRupiah($product['original_price'] ?? $product['harga']) ?></span>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
                                                 <?php if (!$product['has_volumes']): ?>
-                                                    <?= $product['discount_percentage'] ?>%
+                                                    <span class="discount-badge"><?= $product['discount_percentage'] ?>%</span>
                                                 <?php else: ?>
                                                     -
                                                 <?php endif; ?>
@@ -1427,7 +1467,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
-                            <div style="margin-top: 2rem; text-align: center; color: #666;">
+                            <div style="margin-top: 2rem; text-align: center; color: #999; font-size: 13px;">
                                 Total: <?= count($products) ?> produk
                             </div>
                         <?php endif; ?>

@@ -135,20 +135,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
 
-// Get seasons and occasions for filters
-$season_sql = "SELECT DISTINCT season FROM products";
-$season_stmt = $pdo->prepare($season_sql);
-$season_stmt->execute();
-$all_seasons_raw = $season_stmt->fetchAll(PDO::FETCH_COLUMN);
-$all_seasons = array_unique(array_merge(...array_map(function($s) { return explode(',', $s); }, $all_seasons_raw)));
-
-$occasion_sql = "SELECT DISTINCT occasion FROM products";
-$occasion_stmt = $pdo->prepare($occasion_sql);
-$occasion_stmt->execute();
-$all_occasions_raw = $occasion_stmt->fetchAll(PDO::FETCH_COLUMN);
-$all_occasions = array_unique(array_merge(...array_map(function($o) { return explode(',', $o); }, $all_occasions_raw)));
-
-// Get sillage options
+// Get available sillage options
 $sillage_sql = "SELECT DISTINCT sillage FROM products ORDER BY FIELD(sillage, 'intimate', 'moderate', 'strong', 'enormous')";
 $sillage_stmt = $pdo->prepare($sillage_sql);
 $sillage_stmt->execute();
@@ -193,7 +180,7 @@ function renderStars($rating, $size = 'sm') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toko Parfum Refill Premium - Kualitas Original, Harga Terjangkau</title>
+    <title>Parfum Refill Premium - Luxury Fragrances</title>
     <meta name="description" content="Jual parfum refill berkualitas dengan aroma persis seperti original. Tom Ford, Dior, Chanel, dan brand premium lainnya.">
     <style>
         * {
@@ -205,8 +192,8 @@ function renderStars($rating, $size = 'sm') {
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .container {
@@ -215,11 +202,19 @@ function renderStars($rating, $size = 'sm') {
             padding: 0 20px;
         }
         
+        /* Header */
+        .top-bar {
+            background: #f8f8f8;
+            padding: 8px 0;
+            font-size: 12px;
+            text-align: center;
+            color: #666;
+        }
+        
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -229,268 +224,357 @@ function renderStars($rating, $size = 'sm') {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
         }
         
         .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            text-decoration: none;
         }
         
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 35px;
             align-items: center;
         }
         
         .nav-links a {
-            color: white;
+            color: #2c2c2c;
             text-decoration: none;
-            transition: opacity 0.3s;
-            padding: 0.5rem;
-            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 400;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .nav-links a:hover {
-            background: rgba(255,255,255,0.2);
+            color: #c41e3a;
         }
         
         .cart-icon {
             position: relative;
-            background: rgba(255,255,255,0.2);
-            padding: 0.8rem;
-            border-radius: 50%;
-            transition: background 0.3s;
-        }
-        
-        .cart-icon:hover {
-            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+            font-size: 20px;
         }
         
         .cart-count {
             position: absolute;
             top: -8px;
             right: -8px;
-            background: #e74c3c;
+            background: #c41e3a;
             color: white;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            font-size: 0.8rem;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 600;
         }
         
-        .hero {
-            background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), 
-                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400"><defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:%23667eea;stop-opacity:1" /><stop offset="100%" style="stop-color:%23764ba2;stop-opacity:1" /></linearGradient></defs><rect fill="url(%23grad1)" width="1000" height="400"/></svg>');
-            color: white;
+        /* Hero Banner */
+        .hero-banner {
+            background: linear-gradient(135deg, #ffeef5 0%, #fff 100%);
+            padding: 80px 0;
             text-align: center;
-            padding: 4rem 0;
         }
         
-        .hero h1 {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        .hero-content h1 {
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
         }
         
-        .hero p {
-            font-size: 1.3rem;
-            margin-bottom: 2rem;
+        .hero-content p {
+            font-size: 18px;
+            color: #666;
             max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto 30px;
+            line-height: 1.8;
         }
         
         .hero-stats {
             display: flex;
             justify-content: center;
-            gap: 3rem;
-            margin-top: 2rem;
+            gap: 60px;
+            margin-top: 50px;
         }
         
-        .hero-stat {
+        .stat-item {
             text-align: center;
         }
         
-        .hero-stat .number {
-            font-size: 2rem;
-            font-weight: bold;
+        .stat-number {
+            font-size: 36px;
+            font-weight: 300;
+            color: #c41e3a;
             display: block;
+            margin-bottom: 5px;
         }
         
-        .hero-stat .label {
-            font-size: 0.9rem;
-            opacity: 0.9;
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
+        /* Search Section */
         .search-section {
-            background: white;
-            padding: 2rem 0;
-            border-bottom: 1px solid #eee;
+            background: #fff;
+            padding: 40px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
         
-        .search-form {
-            display: grid;
-            gap: 1rem;
-        }
-        
-        .search-row {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
+        .search-bar {
+            max-width: 800px;
+            margin: 0 auto 30px;
+            position: relative;
         }
         
         .search-input {
-            flex: 1;
-            min-width: 300px;
-            padding: 1rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            width: 100%;
+            padding: 15px 50px 15px 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 0;
+            font-size: 14px;
+            background: #fafafa;
         }
         
         .search-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #c41e3a;
+            background: #fff;
+        }
+        
+        .search-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .filters-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
         .filter-group {
             display: flex;
-            gap: 0.5rem;
             align-items: center;
-            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .filter-group label {
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .filter-select, .filter-input {
-            padding: 0.8rem;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            background: white;
+            padding: 10px 15px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            font-size: 13px;
+            color: #2c2c2c;
         }
         
-        .filter-checkbox {
+        .filter-checkbox-group {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            background: #f8f9fa;
-            border-radius: 5px;
+            gap: 8px;
+            padding: 8px 15px;
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s;
         }
         
-        .filter-checkbox:hover {
-            background: #e9ecef;
+        .filter-checkbox-group:hover {
+            background: #f0f0f0;
         }
         
-        .filter-checkbox input {
+        .filter-checkbox-group input {
             margin: 0;
         }
         
-        .btn {
-            background: #667eea;
-            color: white;
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 5px;
+        .filter-checkbox-group label {
+            font-size: 12px;
             cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: all 0.3s;
-            font-weight: 500;
+            margin: 0;
+            text-transform: none;
         }
         
-        .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
+        .btn-primary {
+            background: #c41e3a;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary:hover {
+            background: #a01628;
         }
         
         .btn-secondary {
-            background: #6c757d;
+            background: transparent;
+            color: #666;
+            padding: 12px 30px;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
         
         .btn-secondary:hover {
-            background: #5a6268;
+            border-color: #2c2c2c;
+            color: #2c2c2c;
         }
         
-        .products {
-            padding: 3rem 0;
+        /* Trending Tags */
+        .trending-section {
+            text-align: center;
+            margin-top: 30px;
         }
         
-        .products-header {
+        .trending-title {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .trending-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .trending-tag {
+            padding: 8px 20px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            text-decoration: none;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        
+        .trending-tag:hover {
+            border-color: #c41e3a;
+            color: #c41e3a;
+        }
+        
+        /* Products Section */
+        .products-section {
+            padding: 60px 0;
+        }
+        
+        .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
+            margin-bottom: 40px;
         }
         
-        .products-title {
-            font-size: 2.5rem;
-            color: #333;
+        .section-title {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #2c2c2c;
         }
         
-        .products-info {
+        .product-count {
+            font-size: 13px;
+            color: #999;
+        }
+        
+        .sort-wrapper {
             display: flex;
-            gap: 2rem;
             align-items: center;
-            font-size: 0.9rem;
+            gap: 15px;
+        }
+        
+        .sort-label {
+            font-size: 13px;
             color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
-        .sort-options {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        
+        /* Product Grid */
         .product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 2rem;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
         }
         
         .product-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            overflow: hidden;
-            transition: all 0.3s ease;
+            background: #fff;
+            transition: all 0.3s;
             position: relative;
         }
         
         .product-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+        }
+        
+        .product-image-wrapper {
+            position: relative;
+            padding-bottom: 130%;
+            background: #fafafa;
+            overflow: hidden;
+            margin-bottom: 20px;
         }
         
         .product-image {
-            height: 280px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .product-image img {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s;
+            transition: transform 0.5s;
         }
         
-        .product-card:hover .product-image img {
-            transform: scale(1.05);
+        .product-card:hover .product-image {
+            transform: scale(1.08);
         }
         
         .product-badges {
@@ -500,317 +584,292 @@ function renderStars($rating, $size = 'sm') {
             display: flex;
             flex-direction: column;
             gap: 5px;
+            z-index: 10;
         }
         
         .badge {
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: bold;
+            padding: 5px 12px;
+            font-size: 10px;
+            font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
         }
         
         .badge-discount {
-            background: #e74c3c;
-            color: white;
+            background: #c41e3a;
         }
         
         .badge-new {
-            background: #27ae60;
-            color: white;
+            background: #2c2c2c;
         }
         
         .badge-bestseller {
-            background: #f39c12;
-            color: white;
+            background: #d4af37;
         }
         
         .wishlist-btn {
             position: absolute;
             top: 15px;
             right: 15px;
-            background: rgba(255,255,255,0.9);
+            background: white;
             border: none;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
             transition: all 0.3s;
-            font-size: 1.2rem;
         }
         
         .wishlist-btn:hover {
-            background: white;
-            transform: scale(1.1);
+            background: #c41e3a;
+            color: white;
         }
         
         .product-info {
-            padding: 1.5rem;
+            padding: 0 10px;
         }
         
         .product-name {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 0.8rem;
-            color: #333;
+            font-size: 15px;
+            font-weight: 400;
+            margin-bottom: 10px;
+            color: #2c2c2c;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            min-height: 44px;
         }
         
         .product-rating {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.8rem;
+            gap: 8px;
+            margin-bottom: 10px;
         }
         
         .stars {
-            color: #ffd700;
-            font-size: 0.9rem;
+            color: #d4af37;
+            font-size: 12px;
         }
         
         .rating-text {
-            font-size: 0.85rem;
-            color: #666;
+            font-size: 12px;
+            color: #999;
         }
         
         .product-price {
+            margin-bottom: 15px;
+        }
+        
+        .price-wrapper {
             display: flex;
             align-items: center;
-            gap: 0.8rem;
-            margin-bottom: 0.8rem;
+            gap: 10px;
+            margin-bottom: 5px;
         }
         
         .current-price {
-            font-size: 1.4rem;
-            color: #e74c3c;
-            font-weight: bold;
+            font-size: 20px;
+            font-weight: 400;
+            color: #c41e3a;
         }
         
         .original-price {
-            font-size: 1rem;
+            font-size: 14px;
             color: #999;
             text-decoration: line-through;
         }
         
-        .discount-percentage {
-            background: #e74c3c;
-            color: white;
-            padding: 0.2rem 0.5rem;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            font-weight: bold;
+        .discount-badge {
+            background: #fff0f0;
+            color: #c41e3a;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
         }
         
         .product-meta {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 1rem;
-            font-size: 0.8rem;
-            color: #666;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: #999;
         }
         
         .product-actions {
             display: flex;
-            gap: 0.8rem;
+            gap: 10px;
         }
         
-        .add-to-cart {
+        .btn-view {
             flex: 1;
-            background: #27ae60;
+            background: #2c2c2c;
             color: white;
-            border: none;
-            padding: 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-        
-        .add-to-cart:hover {
-            background: #229954;
-            transform: translateY(-1px);
-        }
-        
-        .add-to-cart:disabled {
-            background: #95a5a6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .view-detail {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
+            padding: 12px;
             text-align: center;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: block;
         }
         
-        .view-detail:hover {
-            background: #5a67d8;
+        .btn-view:hover {
+            background: #c41e3a;
         }
         
+        /* No Products */
         .no-products {
             text-align: center;
-            padding: 4rem 0;
-            color: #666;
+            padding: 80px 20px;
         }
         
         .no-products h3 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            color: #333;
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 15px;
+            color: #2c2c2c;
         }
         
-        .trending-searches {
-            background: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 10px;
-            margin: 2rem 0;
+        .no-products p {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 30px;
         }
         
-        .trending-title {
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            color: #333;
-        }
-        
-        .trending-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        
-        .trending-tag {
-            background: white;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            text-decoration: none;
-            color: #667eea;
-            font-size: 0.85rem;
-            transition: all 0.3s;
-        }
-        
-        .trending-tag:hover {
-            background: #667eea;
-            color: white;
-        }
-        
+        /* Footer */
         footer {
-            background: #2c3e50;
-            color: white;
-            padding: 3rem 0 1rem;
-            margin-top: 4rem;
+            background: #f8f8f8;
+            padding: 60px 0 30px;
+            margin-top: 80px;
         }
         
         .footer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
+            gap: 40px;
+            margin-bottom: 40px;
         }
         
         .footer-section h3 {
-            margin-bottom: 1rem;
-            color: #ecf0f1;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
         }
         
-        .footer-section p, .footer-section a {
-            color: #bdc3c7;
+        .footer-section p,
+        .footer-section a {
+            font-size: 13px;
+            color: #666;
             text-decoration: none;
-            line-height: 1.8;
+            line-height: 2;
+            display: block;
         }
         
         .footer-section a:hover {
-            color: #ecf0f1;
+            color: #c41e3a;
         }
         
         .footer-bottom {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 30px;
             text-align: center;
-            padding-top: 2rem;
-            border-top: 1px solid #34495e;
-            color: #bdc3c7;
         }
         
+        .footer-bottom p {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        /* Alert */
         .alert {
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 8px;
-            border: 1px solid transparent;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 3px solid;
+            font-size: 14px;
         }
         
         .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #22c55e;
         }
         
         .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
         }
         
+        /* Responsive */
         @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
+            .hero-content h1 {
+                font-size: 32px;
             }
             
             .hero-stats {
                 flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .search-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .search-input {
-                min-width: unset;
+                gap: 30px;
             }
             
             .nav-links {
-                gap: 1rem;
+                gap: 15px;
             }
             
-            .products-header {
+            .nav-links a {
+                font-size: 12px;
+            }
+            
+            .section-header {
                 flex-direction: column;
-                align-items: stretch;
+                align-items: flex-start;
+                gap: 20px;
             }
             
             .product-grid {
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 15px;
+            }
+            
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
+    </div>
+
+    <!-- Header -->
     <header>
         <nav class="container">
-            <div class="logo">
-                <span>🌸</span> Parfum Refill Premium
-            </div>
+            <a href="index.php" class="logo">Parfum Refill</a>
             <div class="nav-links">
-                <a href="index.php">Beranda</a>
+                <a href="index.php">Home</a>
                 <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Profil</a>
-                    <a href="orders.php">Pesanan</a>
+                    <a href="profile.php">Account</a>
+                    <a href="orders.php">Orders</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
-                    <a href="register.php">Daftar</a>
+                    <a href="register.php">Register</a>
                 <?php endif; ?>
                 <a href="cart.php" class="cart-icon">
                     🛒
@@ -822,139 +881,148 @@ function renderStars($rating, $size = 'sm') {
         </nav>
     </header>
 
-    <section class="hero">
+    <!-- Hero Banner -->
+    <section class="hero-banner">
         <div class="container">
-            <h1>Parfum Refill Premium</h1>
-            <p>Kualitas Original, Aroma Persis Sama, Harga Terjangkau - Garansi 100% Puas atau Uang Kembali</p>
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <span class="number">1000+</span>
-                    <span class="label">Pelanggan Puas</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="number">50+</span>
-                    <span class="label">Brand Premium</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="number">4.8★</span>
-                    <span class="label">Rating Toko</span>
+            <div class="hero-content">
+                <h1>Luxury Fragrances</h1>
+                <p>Rasakan sensasi wangi elegan dari parfume refill kami — tahan lama dan memikat sepanjang hari.</p>
+                
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">1000+</span>
+                        <span class="stat-label">Happy Customers</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">50+</span>
+                        <span class="stat-label">Premium Brands</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">4.8★</span>
+                        <span class="stat-label">Store Rating</span>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- Search Section -->
     <section class="search-section">
         <div class="container">
-            <form class="search-form" method="GET" action="">
-                <div class="search-row">
+            <form method="GET" action="">
+                <div class="search-bar">
                     <input type="text" name="search" class="search-input" 
-                           placeholder="Cari parfum, aroma, musim, kesempatan (contoh: woody, fresh, spring, evening)..." 
+                           placeholder="Search for perfumes, brands, notes..." 
                            value="<?= htmlspecialchars($search) ?>">
-                    <button type="submit" class="btn">🔍 Cari</button>
+                    <button type="submit" class="search-btn">🔍</button>
                 </div>
                 
-                <div class="search-row">
-                    <div class="filter-group">
-                        <label>Kategori:</label>
-                        <select name="kategori" class="filter-select">
-                            <option value="">Semua</option>
-                            <option value="pria" <?= $kategori == 'pria' ? 'selected' : '' ?>>Pria</option>
-                            <option value="wanita" <?= $kategori == 'wanita' ? 'selected' : '' ?>>Wanita</option>
-                            <option value="unisex" <?= $kategori == 'unisex' ? 'selected' : '' ?>>Unisex</option>
-                        </select>
+                <div class="filters-wrapper">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Category:</label>
+                            <select name="kategori" class="filter-select">
+                                <option value="">All</option>
+                                <option value="pria" <?= $kategori == 'pria' ? 'selected' : '' ?>>Men</option>
+                                <option value="wanita" <?= $kategori == 'wanita' ? 'selected' : '' ?>>Women</option>
+                                <option value="unisex" <?= $kategori == 'unisex' ? 'selected' : '' ?>>Unisex</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>Price:</label>
+                            <input type="number" name="min_price" class="filter-input" 
+                                   placeholder="Min" value="<?= htmlspecialchars($min_price) ?>" style="width: 90px;">
+                            <span>-</span>
+                            <input type="number" name="max_price" class="filter-input" 
+                                   placeholder="Max" value="<?= htmlspecialchars($max_price) ?>" style="width: 90px;">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>Rating:</label>
+                            <select name="min_rating" class="filter-select">
+                                <option value="">All</option>
+                                <option value="4" <?= $min_rating == '4' ? 'selected' : '' ?>>4+ ⭐</option>
+                                <option value="3" <?= $min_rating == '3' ? 'selected' : '' ?>>3+ ⭐</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-checkbox-group">
+                            <input type="checkbox" name="discount_only" id="discount" <?= $discount_only ? 'checked' : '' ?>>
+                            <label for="discount">On Sale</label>
+                        </div>
                     </div>
                     
-                    <div class="filter-group">
-                        <label>Harga:</label>
-                        <input type="number" name="min_price" class="filter-input" 
-                               placeholder="Min" value="<?= htmlspecialchars($min_price) ?>" style="width: 100px;">
-                        <span>-</span>
-                        <input type="number" name="max_price" class="filter-input" 
-                               placeholder="Max" value="<?= htmlspecialchars($max_price) ?>" style="width: 100px;">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Rating min:</label>
-                        <select name="min_rating" class="filter-select">
-                            <option value="">Semua</option>
-                            <option value="4" <?= $min_rating == '4' ? 'selected' : '' ?>>4+ ⭐</option>
-                            <option value="3" <?= $min_rating == '3' ? 'selected' : '' ?>>3+ ⭐</option>
-                        </select>
-                    </div>
-                    
-                    <label class="filter-checkbox">
-                        <input type="checkbox" name="discount_only" <?= $discount_only ? 'checked' : '' ?>>
-                        <span>Hanya Diskon</span>
-                    </label>
-                </div>
-                
-                
-                <div class="search-row">
-                    <div class="filter-group">
-                        <label>Musim:</label>
-                        <?php 
-                        $season_options = ['spring' => 'Musim Semi', 'summer' => 'Musim Panas', 'fall' => 'Musim Gugur', 'winter' => 'Musim Dingin'];
-                        foreach ($season_options as $key => $label): ?>
-                            <label class="filter-checkbox">
-                                <input type="checkbox" name="seasons[]" value="<?= $key ?>" 
-                                       <?= in_array($key, $seasons) ? 'checked' : '' ?>>
-                                <span><?= $label ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Kesempatan:</label>
-                        <?php 
-                        $occasion_options = ['casual' => 'Santai', 'office' => 'Kantor', 'evening' => 'Malam', 'special' => 'Spesial'];
-                        foreach ($occasion_options as $key => $label): ?>
-                            <label class="filter-checkbox">
-                                <input type="checkbox" name="occasions[]" value="<?= $key ?>" 
-                                       <?= in_array($key, $occasions) ? 'checked' : '' ?>>
-                                <span><?= $label ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Sillage:</label>
-                        <select name="sillage" class="filter-select">
-                            <option value="">Semua</option>
-                            <?php foreach ($available_sillage as $sil): ?>
-                                <option value="<?= $sil ?>" <?= $sillage == $sil ? 'selected' : '' ?>><?= ucfirst($sil) ?></option>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Season:</label>
+                            <?php 
+                            $season_options = ['spring' => 'Spring', 'summer' => 'Summer', 'fall' => 'Fall', 'winter' => 'Winter'];
+                            foreach ($season_options as $key => $label): ?>
+                                <div class="filter-checkbox-group">
+                                    <input type="checkbox" name="seasons[]" value="<?= $key ?>" id="season_<?= $key ?>"
+                                           <?= in_array($key, $seasons) ? 'checked' : '' ?>>
+                                    <label for="season_<?= $key ?>"><?= $label ?></label>
+                                </div>
                             <?php endforeach; ?>
-                        </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>Occasion:</label>
+                            <?php 
+                            $occasion_options = ['casual' => 'Casual', 'office' => 'Office', 'evening' => 'Evening', 'special' => 'Special'];
+                            foreach ($occasion_options as $key => $label): ?>
+                                <div class="filter-checkbox-group">
+                                    <input type="checkbox" name="occasions[]" value="<?= $key ?>" id="occasion_<?= $key ?>"
+                                           <?= in_array($key, $occasions) ? 'checked' : '' ?>>
+                                    <label for="occasion_<?= $key ?>"><?= $label ?></label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     
-                    <div class="filter-group">
-                        <label>Ketahanan:</label>
-                        <input type="number" name="min_longevity" class="filter-input" 
-                               placeholder="Min jam" value="<?= htmlspecialchars($min_longevity) ?>" style="width: 80px;">
-                        <span>-</span>
-                        <input type="number" name="max_longevity" class="filter-input" 
-                               placeholder="Max jam" value="<?= htmlspecialchars($max_longevity) ?>" style="width: 80px;">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Sillage:</label>
+                            <select name="sillage" class="filter-select">
+                                <option value="">All</option>
+                                <?php foreach ($available_sillage as $sil): ?>
+                                    <option value="<?= $sil ?>" <?= $sillage == $sil ? 'selected' : '' ?>><?= ucfirst($sil) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>Longevity:</label>
+                            <input type="number" name="min_longevity" class="filter-input" 
+                                   placeholder="Min hrs" value="<?= htmlspecialchars($min_longevity) ?>" style="width: 80px;">
+                            <span>-</span>
+                            <input type="number" name="max_longevity" class="filter-input" 
+                                   placeholder="Max hrs" value="<?= htmlspecialchars($max_longevity) ?>" style="width: 80px;">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-row">
+                        <button type="submit" class="btn-primary">Apply Filters</button>
+                        <a href="index.php" class="btn-secondary">Reset</a>
                     </div>
                 </div>
                 
-                <div class="search-row">
-                    <a href="index.php" class="btn btn-secondary">Reset Filter</a>
+                <div class="trending-section">
+                    <div class="trending-title">Popular Searches</div>
+                    <div class="trending-tags">
+                        <a href="?search=tom+ford" class="trending-tag">Tom Ford</a>
+                        <a href="?search=dior" class="trending-tag">Dior</a>
+                        <a href="?search=chanel" class="trending-tag">Chanel</a>
+                        <a href="?search=woody" class="trending-tag">Woody</a>
+                        <a href="?search=fresh" class="trending-tag">Fresh</a>
+                        <a href="?search=oriental" class="trending-tag">Oriental</a>
+                        <a href="?search=spring" class="trending-tag">Spring</a>
+                        <a href="?search=evening" class="trending-tag">Evening</a>
+                        <a href="?discount_only=1" class="trending-tag">On Sale</a>
+                    </div>
                 </div>
             </form>
-            
-            <div class="trending-searches">
-                <div class="trending-title">🔥 Pencarian Trending:</div>
-                <div class="trending-tags">
-                    <a href="?search=tom+ford" class="trending-tag">Tom Ford</a>
-                    <a href="?search=dior" class="trending-tag">Dior</a>
-                    <a href="?search=chanel" class="trending-tag">Chanel</a>
-                    <a href="?search=woody" class="trending-tag">Woody</a>
-                    <a href="?search=fresh" class="trending-tag">Fresh</a>
-                    <a href="?search=oriental" class="trending-tag">Oriental</a>
-                    <a href="?search=spring" class="trending-tag">Musim Semi</a>
-                    <a href="?search=evening" class="trending-tag">Malam Hari</a>
-                    <a href="?discount_only=1" class="trending-tag">Sedang Diskon</a>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -967,28 +1035,29 @@ function renderStars($rating, $size = 'sm') {
         <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
     <?php endif; ?>
 
-    <section class="products">
+    <!-- Products Section -->
+    <section class="products-section">
         <div class="container">
-            <div class="products-header">
+            <div class="section-header">
                 <div>
-                    <h2 class="products-title">Koleksi Parfum Refill</h2>
-                    <div class="products-info">
-                        <span><?= count($products) ?> produk ditemukan</span>
+                    <h2 class="section-title">Our Collection</h2>
+                    <p class="product-count">
+                        <?= count($products) ?> products found
                         <?php if ($search): ?>
-                            <span>untuk "<?= htmlspecialchars($search) ?>"</span>
+                            for "<?= htmlspecialchars($search) ?>"
                         <?php endif; ?>
-                    </div>
+                    </p>
                 </div>
                 
-                <div class="sort-options">
-                    <label>Urutkan:</label>
-                    <select name="sort_by" class="filter-select" onchange="updateSort(this.value)">
-                        <option value="newest" <?= $sort_by == 'newest' ? 'selected' : '' ?>>Terbaru</option>
-                        <option value="popular" <?= $sort_by == 'popular' ? 'selected' : '' ?>>Terpopuler</option>
-                        <option value="rating" <?= $sort_by == 'rating' ? 'selected' : '' ?>>Rating Tertinggi</option>
-                        <option value="price_low" <?= $sort_by == 'price_low' ? 'selected' : '' ?>>Harga Terendah</option>
-                        <option value="price_high" <?= $sort_by == 'price_high' ? 'selected' : '' ?>>Harga Tertinggi</option>
-                        <option value="discount" <?= $sort_by == 'discount' ? 'selected' : '' ?>>Diskon Terbesar</option>
+                <div class="sort-wrapper">
+                    <span class="sort-label">Sort by:</span>
+                    <select class="filter-select" name="sort_by" onchange="updateSort(this.value)">
+                        <option value="newest" <?= $sort_by == 'newest' ? 'selected' : '' ?>>Newest</option>
+                        <option value="popular" <?= $sort_by == 'popular' ? 'selected' : '' ?>>Most Popular</option>
+                        <option value="rating" <?= $sort_by == 'rating' ? 'selected' : '' ?>>Highest Rated</option>
+                        <option value="price_low" <?= $sort_by == 'price_low' ? 'selected' : '' ?>>Price: Low to High</option>
+                        <option value="price_high" <?= $sort_by == 'price_high' ? 'selected' : '' ?>>Price: High to Low</option>
+                        <option value="discount" <?= $sort_by == 'discount' ? 'selected' : '' ?>>Biggest Discount</option>
                     </select>
                 </div>
             </div>
@@ -1003,31 +1072,33 @@ function renderStars($rating, $size = 'sm') {
                         $is_bestseller = $product['total_sold'] > 100;
                         ?>
                         <div class="product-card">
-                            <a href="product_detail.php?id=<?= $product['id'] ?>">
-                                <div class="product-image">
-                                    <?php if ($primary_image): ?>
-                                        <img src="<?= htmlspecialchars($primary_image) ?>" 
-                                             alt="<?= htmlspecialchars($product['nama_parfum']) ?>"
-                                             loading="lazy"
-                                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect fill=%22%23f8f9fa%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2240%22>🧴</text></svg>';">
-                                    <?php else: ?>
-                                        <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem;">🧴</div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="product-badges">
-                                        <?php if ($product['discount_percentage'] > 0): ?>
-                                            <span class="badge badge-discount">-<?= $product['discount_percentage'] ?>%</span>
-                                        <?php endif; ?>
-                                        <?php if ($is_new): ?>
-                                            <span class="badge badge-new">Baru</span>
-                                        <?php endif; ?>
-                                        <?php if ($is_bestseller): ?>
-                                            <span class="badge badge-bestseller">Terlaris</span>
-                                        <?php endif; ?>
-                                    </div>
+                            <div class="product-image-wrapper">
+                                <?php if ($primary_image): ?>
+                                    <img src="<?= htmlspecialchars($primary_image) ?>" 
+                                         alt="<?= htmlspecialchars($product['nama_parfum']) ?>"
+                                         class="product-image"
+                                         loading="lazy"
+                                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 500%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22500%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2280%22%3E🧴%3C/text%3E%3C/svg%3E';">
+                                <?php else: ?>
+                                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 500'%3E%3Crect fill='%23f0f0f0' width='400' height='500'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='80'%3E🧴%3C/text%3E%3C/svg%3E" 
+                                         alt="<?= htmlspecialchars($product['nama_parfum']) ?>"
+                                         class="product-image">
+                                <?php endif; ?>
                                 
+                                <div class="product-badges">
+                                    <?php if ($product['discount_percentage'] > 0): ?>
+                                        <span class="badge badge-discount">-<?= $product['discount_percentage'] ?>%</span>
+                                    <?php endif; ?>
+                                    <?php if ($is_new): ?>
+                                        <span class="badge badge-new">New</span>
+                                    <?php endif; ?>
+                                    <?php if ($is_bestseller): ?>
+                                        <span class="badge badge-bestseller">Bestseller</span>
+                                    <?php endif; ?>
                                 </div>
-                            </a>
+                                
+                                <button class="wishlist-btn" onclick="toggleWishlist(<?= $product['id'] ?>)">♡</button>
+                            </div>
                             
                             <div class="product-info">
                                 <h3 class="product-name"><?= htmlspecialchars($product['nama_parfum']) ?></h3>
@@ -1038,22 +1109,22 @@ function renderStars($rating, $size = 'sm') {
                                 </div>
                                 
                                 <div class="product-price">
-                                    <span class="current-price"><?= formatRupiah($product['final_price']) ?></span>
-                                    <?php if ($product['discount_percentage'] > 0 && $product['display_original_price']): ?>
-                                        <span class="original-price"><?= formatRupiah($product['display_original_price']) ?></span>
-                                        <span class="discount-percentage">-<?= $product['discount_percentage'] ?>%</span>
-                                    <?php endif; ?>
+                                    <div class="price-wrapper">
+                                        <span class="current-price"><?= formatRupiah($product['final_price']) ?></span>
+                                        <?php if ($product['discount_percentage'] > 0 && $product['display_original_price']): ?>
+                                            <span class="original-price"><?= formatRupiah($product['display_original_price']) ?></span>
+                                            <span class="discount-badge">-<?= $product['discount_percentage'] ?>%</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                                 
                                 <div class="product-meta">
-                                    <span>📦 <?= $product['total_sold'] ?> terjual</span>
-                                    <span>👁️ <?= $product['views_today'] ?> dilihat</span>
+                                    <span>📦 <?= $product['total_sold'] ?> sold</span>
+                                    <span>👁️ <?= $product['views_today'] ?> views</span>
                                 </div>
                                 
                                 <div class="product-actions">
-                                    <a href="product_detail.php?id=<?= $product['id'] ?>" class="view-detail">
-                                        Lihat Detail
-                                    </a>
+                                    <a href="product_detail.php?id=<?= $product['id'] ?>" class="btn-view">View Details</a>
                                 </div>
                             </div>
                         </div>
@@ -1061,39 +1132,47 @@ function renderStars($rating, $size = 'sm') {
                 </div>
             <?php else: ?>
                 <div class="no-products">
-                    <h3>🔍 Tidak ada produk ditemukan</h3>
-                    <p>Coba ubah kata kunci atau filter pencarian Anda</p>
+                    <h3>🔍 No products found</h3>
+                    <p>Try changing your search keywords or filters</p>
                     <div style="margin-top: 2rem;">
-                        <a href="index.php" class="btn">Lihat Semua Produk</a>
+                        <a href="index.php" class="btn-primary">View All Products</a>
                     </div>
                 </div>
             <?php endif; ?>
         </div>
     </section>
 
+    <!-- Footer -->
     <footer>
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h3>🌸 Parfum Refill Premium</h3>
-                    <p>Toko parfum refill terpercaya dengan kualitas original dan harga terjangkau. Kami menjamin 100% kepuasan pelanggan.</p>
+                    <h3>About Us</h3>
+                    <p>Premium refill perfumes with authentic quality and affordable prices. 100% customer satisfaction guaranteed.</p>
                 </div>
                 <div class="footer-section">
-                    <h3>Layanan Pelanggan</h3>
-                    <p><a href="tel:+6281234567890">📞 +62812-3456-7890</a></p>
-                    <p><a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a></p>
-                    <p>🕒 Senin - Sabtu: 09:00 - 21:00</p>
+                    <h3>Customer Service</h3>
+                    <a href="tel:+6281234567890">📞 +62812-3456-7890</a>
+                    <a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a>
+                    <p>🕒 Mon - Sat: 09:00 - 21:00</p>
                 </div>
                 <div class="footer-section">
-                    <h3>Jaminan Kualitas</h3>
-                    <p>✅ 100% Aroma Original</p>
-                    <p>🛡️ Garansi Puas atau Uang Kembali</p>
-                    <p>🚚 Gratis Ongkir min. Rp 500K</p>
-                    <p>⭐ Rating 4.8/5 dari 1000+ review</p>
+                    <h3>Quick Links</h3>
+                    <a href="#">Track Order</a>
+                    <a href="#">Shipping Info</a>
+                    <a href="#">Return Policy</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Our Guarantee</h3>
+                    <p>✅ 100% Original Scent</p>
+                    <p>🛡️ Money Back Guarantee</p>
+                    <p>🚚 Free Shipping (min. Rp 500K)</p>
+                    <p>⭐ 4.8/5 Rating from 1000+ reviews</p>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Parfum Refill Premium. Semua hak dilindungi undang-undang.</p>
+                <p>&copy; 2024 Parfum Refill Premium. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -1106,19 +1185,27 @@ function renderStars($rating, $size = 'sm') {
         }
         
         function toggleWishlist(productId) {
-            alert('Fitur wishlist akan segera tersedia!');
+            alert('Wishlist feature coming soon!');
         }
         
         // Auto-submit form on filter change
         document.addEventListener('DOMContentLoaded', function() {
-            const filterInputs = document.querySelectorAll('select[name="kategori"], select[name="min_rating"], select[name="sillage"], input[name="min_longevity"], input[name="max_longevity"], input[name="discount_only"]');
-            filterInputs.forEach(input => {
-                input.addEventListener('change', function() {
+            const filterSelects = document.querySelectorAll('select[name="kategori"], select[name="min_rating"], select[name="sillage"]');
+            filterSelects.forEach(select => {
+                select.addEventListener('change', function() {
                     this.form.submit();
                 });
             });
             
-            // Season and occasion checkboxes
+            // Discount checkbox
+            const discountCheckbox = document.querySelector('input[name="discount_only"]');
+            if (discountCheckbox) {
+                discountCheckbox.addEventListener('change', function() {
+                    this.form.submit();
+                });
+            }
+            
+            // Season checkboxes
             const seasonCheckboxes = document.querySelectorAll('input[name="seasons[]"]');
             seasonCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
@@ -1126,6 +1213,7 @@ function renderStars($rating, $size = 'sm') {
                 });
             });
 
+            // Occasion checkboxes
             const occasionCheckboxes = document.querySelectorAll('input[name="occasions[]"]');
             occasionCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', function() {

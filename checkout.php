@@ -100,6 +100,18 @@ if ($_POST) {
         }
     }
 }
+
+// Get cart count
+$cart_count = 0;
+if (isLoggedIn()) {
+    $stmt = $pdo->prepare("SELECT SUM(jumlah) as total FROM cart WHERE user_id = ?");
+    $stmt->execute([getUserId()]);
+} else {
+    $stmt = $pdo->prepare("SELECT SUM(jumlah) as total FROM cart WHERE session_id = ?");
+    $stmt->execute([$_SESSION['session_id']]);
+}
+$cart_result = $stmt->fetch();
+$cart_count = $cart_result['total'] ?? 0;
 ?>
 
 <!DOCTYPE html>
@@ -107,7 +119,7 @@ if ($_POST) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout - Toko Parfum Premium</title>
+    <title>Checkout - Parfum Refill Premium</title>
     <style>
         * {
             margin: 0;
@@ -116,23 +128,35 @@ if ($_POST) {
         }
         
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
         }
         
+        /* Top Bar */
+        .top-bar {
+            background: #f8f8f8;
+            padding: 8px 0;
+            font-size: 12px;
+            text-align: center;
+            color: #666;
+        }
+        
+        /* Header */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         
         nav {
@@ -142,74 +166,140 @@ if ($_POST) {
         }
         
         .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            text-decoration: none;
         }
         
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 35px;
             align-items: center;
         }
         
         .nav-links a {
-            color: white;
+            color: #2c2c2c;
             text-decoration: none;
-            transition: opacity 0.3s;
+            font-size: 14px;
+            font-weight: 400;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .nav-links a:hover {
-            opacity: 0.8;
+            color: #c41e3a;
         }
         
+        .cart-icon {
+            position: relative;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #c41e3a;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        /* Main Content */
         .main-content {
-            padding: 3rem 0;
+            padding: 60px 0;
         }
         
         h1 {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #2c2c2c;
             text-align: center;
-            margin-bottom: 3rem;
-            color: #333;
-            font-size: 2.5rem;
+            margin-bottom: 40px;
         }
         
+        /* Alert */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 3px solid;
+            font-size: 14px;
+        }
+        
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
+        }
+        
+        .login-prompt {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #166534;
+        }
+        
+        .login-prompt a {
+            color: #c41e3a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .login-prompt a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Checkout Container */
         .checkout-container {
             display: grid;
             grid-template-columns: 1fr 400px;
-            gap: 3rem;
+            gap: 40px;
         }
         
-        .checkout-form {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .order-summary {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            height: fit-content;
+        .checkout-form, .order-summary {
+            background: #fff;
+            padding: 30px;
+            border-radius: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
         h2 {
-            margin-bottom: 2rem;
-            color: #333;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 0.5rem;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 10px;
         }
         
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 20px;
         }
         
         label {
             display: block;
-            margin-bottom: 0.5rem;
-            color: #555;
-            font-weight: 500;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         input[type="text"],
@@ -217,18 +307,19 @@ if ($_POST) {
         input[type="tel"],
         textarea {
             width: 100%;
-            padding: 0.8rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-family: inherit;
-            transition: border-color 0.3s;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 0;
+            font-size: 14px;
+            background: #fafafa;
+            transition: all 0.3s;
         }
         
         input:focus,
         textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #c41e3a;
+            background: #fff;
         }
         
         textarea {
@@ -236,12 +327,16 @@ if ($_POST) {
             resize: vertical;
         }
         
+        .required {
+            color: #c41e3a;
+        }
+        
         .order-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 0;
-            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .order-item:last-child {
@@ -253,57 +348,62 @@ if ($_POST) {
         }
         
         .item-name {
-            font-weight: bold;
-            margin-bottom: 0.25rem;
+            font-weight: 400;
+            margin-bottom: 5px;
+            color: #2c2c2c;
         }
         
         .item-quantity {
-            margin-left: 1rem;
-            color: #666;
+            margin-left: 10px;
+            color: #999;
+            font-size: 13px;
         }
         
         .item-price {
-            margin-left: 1rem;
-            font-weight: bold;
-            color: #e74c3c;
+            margin-left: 10px;
+            font-weight: 600;
+            color: #c41e3a;
+            font-size: 16px;
         }
         
         .total-section {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 2px solid #667eea;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
         }
         
         .total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 1rem;
-            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-size: 14px;
         }
         
         .total-final {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c2c2c;
         }
         
         .btn {
-            background: #667eea;
+            background: #c41e3a;
             color: white;
-            padding: 1rem 2rem;
+            padding: 15px;
             border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+            border-radius: 0;
+            font-size: 14px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
             transition: background 0.3s;
             width: 100%;
-            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
         }
         
-        .btn:hover {
-            background: #5a67d8;
+        .btn:hover:not(:disabled) {
+            background: #a01628;
         }
         
         .btn:disabled {
@@ -311,75 +411,91 @@ if ($_POST) {
             cursor: not-allowed;
         }
         
-        .btn-success {
-            background: #27ae60;
-            margin-top: 2rem;
-        }
-        
-        .btn-success:hover:not(:disabled) {
-            background: #229954;
-        }
-        
-        .alert {
-            padding: 1rem;
-            margin-bottom: 2rem;
-            border-radius: 5px;
-        }
-        
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .login-prompt {
-            background: #e3f2fd;
-            border: 1px solid #bbdefb;
-            padding: 1rem;
-            border-radius: 5px;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-        
-        .login-prompt a {
-            color: #1976d2;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        .login-prompt a:hover {
-            text-decoration: underline;
-        }
-        
-        .required {
-            color: #e74c3c;
-        }
-        
         .payment-info {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 1px solid #eee;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
         }
         
         .payment-info h3 {
-            margin-bottom: 1rem;
-            color: #333;
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .payment-info p {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
         }
         
         .loading {
             display: none;
             text-align: center;
-            margin-top: 1rem;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f8f8;
+            color: #666;
         }
         
         .loading.active {
             display: block;
         }
         
+        /* Footer */
+        footer {
+            background: #f8f8f8;
+            padding: 60px 0 30px;
+            margin-top: 80px;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        
+        .footer-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
+        }
+        
+        .footer-section p,
+        .footer-section a {
+            font-size: 13px;
+            color: #666;
+            text-decoration: none;
+            line-height: 2;
+            display: block;
+        }
+        
+        .footer-section a:hover {
+            color: #c41e3a;
+        }
+        
+        .footer-bottom {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 30px;
+            text-align: center;
+        }
+        
+        .footer-bottom p {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        /* Responsive */
         @media (max-width: 768px) {
             .checkout-container {
                 grid-template-columns: 1fr;
-                gap: 2rem;
+                gap: 30px;
             }
             
             .order-item {
@@ -391,26 +507,46 @@ if ($_POST) {
             .item-quantity,
             .item-price {
                 margin-left: 0;
-                margin-top: 0.5rem;
+                margin-top: 5px;
+            }
+            
+            .nav-links {
+                gap: 15px;
+            }
+            
+            .nav-links a {
+                font-size: 12px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
+    </div>
+
+    <!-- Header -->
     <header>
         <nav class="container">
-            <div class="logo">🌸 Parfum Premium</div>
+            <a href="index.php" class="logo">Parfum Refill</a>
             <div class="nav-links">
-                <a href="index.php">Beranda</a>
-                <a href="cart.php">Keranjang</a>
+                <a href="index.php">Home</a>
+                <a href="cart.php">Cart</a>
                 <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Profil</a>
-                    <a href="orders.php">Pesanan</a>
+                    <a href="profile.php">Account</a>
+                    <a href="orders.php">Orders</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
-                    <a href="register.php">Daftar</a>
+                    <a href="register.php">Register</a>
                 <?php endif; ?>
+                <a href="cart.php" class="cart-icon">
+                    🛒
+                    <?php if ($cart_count > 0): ?>
+                        <span class="cart-count"><?= $cart_count ?></span>
+                    <?php endif; ?>
+                </a>
             </div>
         </nav>
     </header>
@@ -418,6 +554,13 @@ if ($_POST) {
     <main class="main-content">
         <div class="container">
             <h1>Checkout</h1>
+            
+            <?php if (isset($_SESSION['message'])): ?>
+                <div class="alert alert-<?= $_SESSION['message_type'] ?>">
+                    <?= $_SESSION['message'] ?>
+                </div>
+                <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
+            <?php endif; ?>
             
             <?php if ($error): ?>
                 <div class="alert alert-error"><?= $error ?></div>
@@ -462,7 +605,7 @@ if ($_POST) {
                             <textarea id="notes" name="notes" placeholder="Catatan khusus untuk pesanan Anda..."><?= htmlspecialchars($_POST['notes'] ?? '') ?></textarea>
                         </div>
                         
-                        <button type="submit" class="btn btn-success" id="payButton">💳 Bayar Sekarang</button>
+                        <button type="submit" class="btn" id="payButton">💳 Bayar Sekarang</button>
                         
                         <div class="loading" id="loading">
                             <p>⏳ Memproses pembayaran...</p>
@@ -512,6 +655,41 @@ if ($_POST) {
             </div>
         </div>
     </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>About Us</h3>
+                    <p>Premium refill perfumes with authentic quality and affordable prices. 100% customer satisfaction guaranteed.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Customer Service</h3>
+                    <a href="tel:+6281234567890">📞 +62812-3456-7890</a>
+                    <a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a>
+                    <p>🕒 Mon - Sat: 09:00 - 21:00</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <a href="#">Track Order</a>
+                    <a href="#">Shipping Info</a>
+                    <a href="#">Return Policy</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Our Guarantee</h3>
+                    <p>✅ 100% Original Scent</p>
+                    <p>🛡️ Money Back Guarantee</p>
+                    <p>🚚 Free Shipping (min. Rp 500K)</p>
+                    <p>⭐ 4.8/5 Rating from 1000+ reviews</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Parfum Refill Premium. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 
     <!-- Midtrans Snap JS -->
     <script src="<?php echo MIDTRANS_SNAP_URL; ?>" data-client-key="<?php echo MIDTRANS_CLIENT_KEY; ?>"></script>

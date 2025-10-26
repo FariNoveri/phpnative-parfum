@@ -49,7 +49,7 @@ if ($_POST) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar - Toko Parfum Premium</title>
+    <title>Register - Parfum Refill Premium</title>
     <style>
         * {
             margin: 0;
@@ -58,45 +58,132 @@ if ($_POST) {
         }
         
         body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffeef5 0%, #fff 50%, #f0f0f0 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem 0;
+            padding: 2rem;
+        }
+        
+        .register-wrapper {
+            display: flex;
+            max-width: 1000px;
+            width: 100%;
+            background: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .register-banner {
+            flex: 1;
+            background: linear-gradient(135deg, #c41e3a 0%, #8b1429 100%);
+            padding: 3rem;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .banner-icon {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+        }
+        
+        .banner-title {
+            font-size: 2rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+        
+        .banner-text {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            opacity: 0.9;
+            max-width: 300px;
+        }
+        
+        .benefits {
+            margin-top: 2rem;
+            text-align: left;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .benefit-item::before {
+            content: '✓';
+            background: rgba(255,255,255,0.2);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
         
         .register-container {
-            background: white;
+            flex: 1.2;
             padding: 3rem;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         
         .logo {
             text-align: center;
-            font-size: 2rem;
-            color: #667eea;
-            margin-bottom: 2rem;
+            font-size: 1.8rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
         }
         
         h2 {
             text-align: center;
-            color: #333;
+            color: #666;
+            font-weight: 300;
+            font-size: 1.1rem;
             margin-bottom: 2rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
         }
         
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.2rem;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
         }
         
         label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #555;
+            color: #666;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             font-weight: 500;
         }
         
@@ -106,18 +193,20 @@ if ($_POST) {
         input[type="tel"],
         textarea {
             width: 100%;
-            padding: 0.8rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 0.9rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 0;
+            font-size: 0.95rem;
             font-family: inherit;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            background: #fafafa;
         }
         
         input:focus,
         textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #c41e3a;
+            background: white;
         }
         
         textarea {
@@ -127,37 +216,67 @@ if ($_POST) {
         
         .btn {
             width: 100%;
-            background: #667eea;
+            background: #c41e3a;
             color: white;
-            padding: 0.8rem;
+            padding: 1rem;
             border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: background 0.3s;
-            margin-bottom: 1rem;
+            transition: all 0.3s;
+            margin: 1rem 0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
         }
         
         .btn:hover {
-            background: #5a67d8;
+            background: #a01628;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(196, 30, 58, 0.3);
         }
         
         .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 1rem;
-            border-radius: 5px;
-            margin-bottom: 1rem;
-            border: 1px solid #f5c6cb;
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 0.9rem;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid #ef4444;
+            font-size: 0.9rem;
         }
         
         .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 1rem;
-            border-radius: 5px;
-            margin-bottom: 1rem;
-            border: 1px solid #c3e6cb;
+            background: #f0fdf4;
+            color: #166534;
+            padding: 0.9rem;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid #22c55e;
+            font-size: 0.9rem;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 1rem 0;
+            position: relative;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e0e0e0;
+        }
+        
+        .divider span {
+            background: white;
+            padding: 0 1rem;
+            position: relative;
+            color: #999;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .links {
@@ -165,74 +284,149 @@ if ($_POST) {
         }
         
         .links a {
-            color: #667eea;
+            color: #c41e3a;
             text-decoration: none;
-            margin: 0 1rem;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .links a:hover {
+            color: #a01628;
             text-decoration: underline;
         }
         
-        @media (max-width: 480px) {
+        .links p {
+            margin: 0.5rem 0;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .back-link {
+            margin-top: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .register-wrapper {
+                flex-direction: column;
+            }
+            
+            .register-banner {
+                padding: 2rem;
+            }
+            
+            .banner-title {
+                font-size: 1.5rem;
+            }
+            
             .register-container {
                 padding: 2rem;
-                margin: 1rem;
+                max-height: none;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .register-container {
+                padding: 1.5rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="register-container">
-        <div class="logo">🌸 Parfum Premium</div>
-        <h2>Daftar Akun Baru</h2>
+    <div class="register-wrapper">
+        <div class="register-banner">
+            <div class="banner-icon">🧴</div>
+            <div class="banner-title">Parfum Refill</div>
+            <p class="banner-text">Join thousands of satisfied customers enjoying premium fragrances.</p>
+            
+            <div class="benefits">
+                <div class="benefit-item">Exclusive member discounts</div>
+                <div class="benefit-item">Early access to new arrivals</div>
+                <div class="benefit-item">Free shipping on first order</div>
+                <div class="benefit-item">Birthday special offers</div>
+            </div>
+        </div>
         
-        <?php if ($error): ?>
-            <div class="error"><?= $error ?></div>
-        <?php endif; ?>
-        
-        <?php if ($success): ?>
-            <div class="success"><?= $success ?></div>
-        <?php endif; ?>
-        
-        <form method="POST">
-            <div class="form-group">
-                <label for="nama">Nama Lengkap:</label>
-                <input type="text" id="nama" name="nama" required value="<?= htmlspecialchars($_POST['nama'] ?? '') ?>">
+        <div class="register-container">
+            <div class="logo">Create Account</div>
+            <h2>Join our community today</h2>
+            
+            <?php if ($error): ?>
+                <div class="error"><?= $error ?></div>
+            <?php endif; ?>
+            
+            <?php if ($success): ?>
+                <div class="success"><?= $success ?></div>
+            <?php endif; ?>
+            
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nama">Full Name</label>
+                        <input type="text" id="nama" name="nama" required 
+                               value="<?= htmlspecialchars($_POST['nama'] ?? '') ?>"
+                               placeholder="John Doe">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" required 
+                               value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
+                               placeholder="your@email.com">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="telepon">Phone Number</label>
+                        <input type="tel" id="telepon" name="telepon" required 
+                               value="<?= htmlspecialchars($_POST['telepon'] ?? '') ?>"
+                               placeholder="+62 812-3456-7890">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required
+                               placeholder="Min. 6 characters">
+                    </div>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required
+                           placeholder="Re-enter your password">
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="alamat">Complete Address</label>
+                    <textarea id="alamat" name="alamat" required 
+                              placeholder="Street, City, Province, Postal Code"><?= htmlspecialchars($_POST['alamat'] ?? '') ?></textarea>
+                </div>
+                
+                <button type="submit" class="btn">Create Account</button>
+            </form>
+            
+            <div class="divider">
+                <span>or</span>
             </div>
             
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+            <div class="links">
+                <p>Already have an account?</p>
+                <a href="login.php">Sign In</a>
+                
+                <p class="back-link">
+                    <a href="index.php">← Back to Home</a>
+                </p>
             </div>
-            
-            <div class="form-group">
-                <label for="telepon">No. Telepon:</label>
-                <input type="tel" id="telepon" name="telepon" required value="<?= htmlspecialchars($_POST['telepon'] ?? '') ?>">
-            </div>
-            
-            <div class="form-group">
-                <label for="alamat">Alamat:</label>
-                <textarea id="alamat" name="alamat" required><?= htmlspecialchars($_POST['alamat'] ?? '') ?></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="confirm_password">Konfirmasi Password:</label>
-                <input type="password" id="confirm_password" name="confirm_password" required>
-            </div>
-            
-            <button type="submit" class="btn">Daftar</button>
-        </form>
-        
-        <div class="links">
-            <a href="login.php">Sudah punya akun? Login</a>
-            <br><br>
-            <a href="index.php">Kembali ke Beranda</a>
         </div>
     </div>
 </body>

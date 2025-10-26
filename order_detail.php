@@ -38,6 +38,18 @@ $order_items = $stmt->fetchAll();
 $wa_number = "6281234567890";
 $wa_message = "Halo, saya ingin menanyakan status pesanan #" . $order['id'] . " atas nama " . $order['nama_customer'] . ". Terima kasih!";
 $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
+
+// Get cart count
+$cart_count = 0;
+if (isLoggedIn()) {
+    $stmt = $pdo->prepare("SELECT SUM(jumlah) as total FROM cart WHERE user_id = ?");
+    $stmt->execute([getUserId()]);
+} else {
+    $stmt = $pdo->prepare("SELECT SUM(jumlah) as total FROM cart WHERE session_id = ?");
+    $stmt->execute([$_SESSION['session_id']]);
+}
+$cart_result = $stmt->fetch();
+$cart_count = $cart_result['total'] ?? 0;
 ?>
 
 <!DOCTYPE html>
@@ -45,7 +57,7 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail Pesanan #<?= $order['id'] ?> - Toko Parfum Premium</title>
+    <title>Detail Pesanan #<?= $order['id'] ?> - Parfum Refill Premium</title>
     <style>
         * {
             margin: 0;
@@ -54,243 +66,410 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
         }
         
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .container {
-            max-width: 800px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 0 20px;
         }
         
-        .header {
+        /* Top Bar */
+        .top-bar {
+            background: #f8f8f8;
+            padding: 8px 0;
+            font-size: 12px;
             text-align: center;
-            margin-bottom: 3rem;
+            color: #666;
         }
         
-        .header h1 {
-            color: #333;
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+        /* Header */
+        header {
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         
-        .back-link {
-            color: #667eea;
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
             text-decoration: none;
-            font-size: 1.1rem;
         }
         
-        .back-link:hover {
-            text-decoration: underline;
+        .nav-links {
+            display: flex;
+            gap: 35px;
+            align-items: center;
         }
         
-        .order-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin-bottom: 2rem;
+        .nav-links a {
+            color: #2c2c2c;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 400;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .nav-links a:hover {
+            color: #c41e3a;
+        }
+        
+        .cart-icon {
+            position: relative;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #c41e3a;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        /* Breadcrumb */
+        .breadcrumb {
+            padding: 30px 0 20px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .breadcrumb a {
+            color: #666;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .breadcrumb a:hover {
+            color: #c41e3a;
+        }
+        
+        .breadcrumb span {
+            margin: 0 10px;
+        }
+        
+        /* Order Section */
+        .order-section {
+            padding: 20px 0 60px;
         }
         
         .order-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            text-align: center;
-        }
-        
-        .order-id {
-            font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        
-        .order-date {
-            opacity: 0.9;
-            margin-bottom: 1rem;
-        }
-        
-        .order-status {
-            background: rgba(255,255,255,0.2);
-            padding: 0.5rem 1.5rem;
-            border-radius: 20px;
-            display: inline-block;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        
-        .order-details {
-            padding: 2rem;
-        }
-        
-        .detail-section {
-            margin-bottom: 2.5rem;
-        }
-        
-        .detail-section h3 {
-            color: #333;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #667eea;
+            background: #f8f8f8;
+            padding: 30px;
+            margin-bottom: 30px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
+            flex-wrap: wrap;
+            gap: 20px;
         }
         
-        .customer-info {
+        .order-title {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #2c2c2c;
+        }
+        
+        .order-id-badge {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .order-status-badge {
+            background: #c41e3a;
+            color: white;
+            padding: 8px 20px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        .order-status-badge.pending {
+            background: #f39c12;
+        }
+        
+        .order-status-badge.confirmed {
+            background: #3498db;
+        }
+        
+        .order-status-badge.processing {
+            background: #9b59b6;
+        }
+        
+        .order-status-badge.shipped {
+            background: #1abc9c;
+        }
+        
+        .order-status-badge.delivered {
+            background: #27ae60;
+        }
+        
+        .order-status-badge.cancelled {
+            background: #e74c3c;
+        }
+        
+        .order-content {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
         }
         
-        .info-item {
-            margin-bottom: 1rem;
+        /* Main Content */
+        .order-main {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            padding: 0;
         }
         
-        .info-label {
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 0.25rem;
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #fafafa;
         }
         
-        .info-value {
-            color: #333;
+        .order-items {
+            padding: 30px;
         }
         
         .order-item {
             display: flex;
-            align-items: center;
-            padding: 1.5rem 0;
-            border-bottom: 1px solid #eee;
+            gap: 20px;
+            padding: 20px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .order-item:last-child {
             border-bottom: none;
         }
         
-        .product-image {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border-radius: 10px;
+        .item-image {
+            width: 80px;
+            height: 80px;
+            background: #f8f8f8;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 1.5rem;
-            margin-right: 1.5rem;
+            font-size: 32px;
+            flex-shrink: 0;
         }
         
-        .item-info {
+        .item-details {
             flex: 1;
         }
         
         .item-name {
-            font-weight: bold;
-            margin-bottom: 0.25rem;
-            font-size: 1.1rem;
+            font-size: 15px;
+            font-weight: 400;
+            margin-bottom: 5px;
+            color: #2c2c2c;
         }
         
-        .item-brand {
+        .item-price-info {
+            font-size: 13px;
             color: #666;
-            font-size: 0.9rem;
+            margin-top: 5px;
         }
         
         .item-quantity {
-            margin: 0 1rem;
+            font-size: 14px;
             color: #666;
-            font-size: 1.1rem;
+            margin-right: 30px;
         }
         
-        .item-price {
-            font-weight: bold;
-            color: #e74c3c;
-            font-size: 1.1rem;
+        .item-total {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c2c2c;
+            text-align: right;
         }
         
-        .total-section {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 3px solid #667eea;
+        /* Sidebar */
+        .order-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        
+        .sidebar-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .sidebar-card-content {
+            padding: 30px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .info-label {
+            color: #666;
+        }
+        
+        .info-value {
+            color: #2c2c2c;
+            font-weight: 400;
+            text-align: right;
         }
         
         .total-row {
+            padding-top: 20px;
+            margin-top: 20px;
+            border-top: 2px solid #f0f0f0;
             display: flex;
             justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-size: 1.1rem;
+            font-size: 18px;
+            font-weight: 600;
         }
         
-        .total-final {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #333;
-            padding-top: 1rem;
-            border-top: 1px solid #eee;
+        .total-amount {
+            color: #c41e3a;
         }
         
+        .customer-info {
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .customer-info p {
+            margin-bottom: 10px;
+        }
+        
+        .customer-info strong {
+            display: block;
+            color: #2c2c2c;
+            margin-bottom: 3px;
+        }
+        
+        .address-text {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .notes-text {
+            background: #fffbea;
+            padding: 15px;
+            border-left: 3px solid #f39c12;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* Action Buttons */
         .action-buttons {
-            text-align: center;
-            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         
         .btn {
-            background: #667eea;
-            color: white;
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 15px;
+            text-align: center;
             text-decoration: none;
-            display: inline-block;
-            margin: 0 0.5rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             transition: all 0.3s;
+            border: none;
             cursor: pointer;
+            display: block;
         }
         
-        .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
+        .btn-primary {
+            background: #2c2c2c;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #c41e3a;
         }
         
         .btn-whatsapp {
             background: #25d366;
+            color: white;
         }
         
         .btn-whatsapp:hover {
             background: #20b954;
         }
         
-        .btn-print {
-            background: #f39c12;
+        .btn-secondary {
+            background: transparent;
+            color: #666;
+            border: 1px solid #e0e0e0;
         }
         
-        .btn-print:hover {
-            background: #e67e22;
+        .btn-secondary:hover {
+            border-color: #2c2c2c;
+            color: #2c2c2c;
         }
         
-        .status-timeline {
+        /* Status Timeline */
+        .timeline {
+            padding: 30px;
+            background: #fafafa;
+        }
+        
+        .timeline-steps {
             display: flex;
             justify-content: space-between;
-            margin: 2rem 0;
             position: relative;
         }
         
-        .status-timeline::before {
+        .timeline-steps::before {
             content: '';
             position: absolute;
             top: 20px;
-            left: 0;
-            right: 0;
+            left: 40px;
+            right: 40px;
             height: 2px;
             background: #e0e0e0;
             z-index: 1;
         }
         
-        .timeline-item {
+        .timeline-step {
             flex: 1;
             text-align: center;
             position: relative;
@@ -305,422 +484,435 @@ $wa_link = "https://wa.me/{$wa_number}?text=" . urlencode($wa_message);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 0.5rem;
+            margin: 0 auto 10px;
+            font-size: 12px;
+            font-weight: 600;
             color: white;
-            font-weight: bold;
         }
         
-        .timeline-item.active .timeline-icon {
+        .timeline-step.completed .timeline-icon {
             background: #27ae60;
         }
         
-        .timeline-item.current .timeline-icon {
+        .timeline-step.current .timeline-icon {
             background: #f39c12;
         }
         
-        .timeline-text {
-            font-size: 0.9rem;
-            color: #666;
+        .timeline-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
-        .timeline-item.active .timeline-text {
-            color: #333;
-            font-weight: bold;
-        }
-        
-        .print-header {
-            display: none;
-            text-align: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #333;
-        }
-        
-        .print-header h1 {
-            font-size: 1.5rem;
-            margin-bottom: 0.25rem;
-        }
-        
-        .print-header p {
-            color: #666;
-            margin: 0.125rem 0;
-            font-size: 0.9rem;
+        .timeline-step.completed .timeline-label,
+        .timeline-step.current .timeline-label {
+            color: #2c2c2c;
+            font-weight: 600;
         }
         
         /* Print Styles */
+        .print-only {
+            display: none;
+        }
+        
         @media print {
             body {
-                background-color: white !important;
-                color: #000 !important;
-                font-size: 10pt !important;
-                line-height: 1.2 !important;
-                margin: 0.25in !important;
-                padding: 0 !important;
+                background: white;
+                font-size: 11pt;
             }
             
-            .container {
-                max-width: none !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            
-            .header {
+            .top-bar,
+            header,
+            .breadcrumb,
+            .action-buttons,
+            .timeline {
                 display: none !important;
             }
             
-            .print-header {
+            .print-only {
                 display: block !important;
             }
             
-            .order-card {
-                box-shadow: none !important;
-                border-radius: 0 !important;
-                margin: 0 !important;
-                page-break-inside: avoid !important;
-                border: none !important;
+            .container {
+                max-width: none;
+                padding: 0;
+            }
+            
+            .print-header {
+                text-align: center;
+                padding: 20px 0;
+                border-bottom: 2px solid #2c2c2c;
+                margin-bottom: 30px;
+            }
+            
+            .print-logo {
+                font-size: 24px;
+                font-weight: 300;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                margin-bottom: 10px;
+            }
+            
+            .print-company-info {
+                font-size: 10pt;
+                color: #666;
+                line-height: 1.6;
+            }
+            
+            .order-section {
+                padding: 0;
             }
             
             .order-header {
-                background: #f8f9fa !important;
-                color: #000 !important;
-                border: 1px solid #333 !important;
-                padding: 0.5rem !important;
-                margin-bottom: 0.5rem !important;
-                page-break-after: avoid !important;
+                background: white;
+                border: 2px solid #2c2c2c;
+                padding: 20px;
+                margin-bottom: 20px;
+                page-break-after: avoid;
             }
             
-            .order-id {
-                font-size: 1.2rem !important;
+            .order-title {
+                font-size: 20pt;
             }
             
-            .order-date {
-                font-size: 0.9rem !important;
+            .order-status-badge {
+                border: 2px solid #2c2c2c;
+                color: #2c2c2c;
+                background: white;
             }
             
-            .order-status {
-                background: #e9ecef !important;
-                color: #000 !important;
-                border: 1px solid #333 !important;
-                padding: 0.25rem 0.75rem !important;
-                font-size: 0.9rem !important;
+            .order-content {
+                display: block;
             }
             
-            .order-details {
-                padding: 0.5rem !important;
+            .order-main {
+                border: 1px solid #2c2c2c;
+                margin-bottom: 20px;
+                page-break-inside: avoid;
             }
             
-            .detail-section {
-                margin-bottom: 1rem !important;
-                page-break-inside: avoid !important;
-                page-break-after: avoid !important;
+            .section-title {
+                background: white;
+                border-bottom: 1px solid #2c2c2c;
             }
             
-            .detail-section h3 {
-                border-bottom: 1px solid #333 !important;
-                color: #000 !important;
-                font-size: 1rem !important;
-                margin-bottom: 0.75rem !important;
-                padding-bottom: 0.25rem !important;
-            }
-            
-            .customer-info {
-                grid-template-columns: 1fr !important;
-                gap: 0.5rem !important;
-            }
-            
-            .info-item {
-                margin-bottom: 0.5rem !important;
-            }
-            
-            .info-label {
-                font-size: 0.9rem !important;
-            }
-            
-            .info-value {
-                font-size: 0.9rem !important;
+            .order-items {
+                padding: 20px;
             }
             
             .order-item {
-                display: flex !important;
-                align-items: flex-start !important;
-                padding: 0.75rem 0 !important;
-                border-bottom: 1px solid #eee !important;
-                page-break-inside: avoid !important;
-                page-break-after: auto !important;
-                font-size: 0.9rem !important;
+                padding: 15px 0;
+                page-break-inside: avoid;
             }
             
-            .product-image {
-                width: 40px !important;
-                height: 40px !important;
-                font-size: 1rem !important;
-                margin-right: 0.75rem !important;
-                flex-shrink: 0 !important;
+            .item-image {
+                background: #f8f8f8;
+                border: 1px solid #e0e0e0;
             }
             
-            .item-info {
-                flex: 1 !important;
+            .order-sidebar {
+                margin-top: 0;
             }
             
-            .item-name {
-                font-size: 1rem !important;
-                margin-bottom: 0.125rem !important;
+            .sidebar-card {
+                border: 1px solid #2c2c2c;
+                margin-bottom: 20px;
+                page-break-inside: avoid;
             }
             
-            .item-brand {
-                font-size: 0.8rem !important;
-            }
-            
-            .item-quantity {
-                margin: 0 0.5rem !important;
-                font-size: 1rem !important;
-                flex-shrink: 0 !important;
-            }
-            
-            .item-price {
-                font-size: 1rem !important;
-                flex-shrink: 0 !important;
-                white-space: nowrap !important;
-            }
-            
-            .total-section {
-                margin-top: 1rem !important;
-                padding-top: 1rem !important;
-                border-top: 1px solid #333 !important;
-                page-break-before: avoid !important;
+            .sidebar-card-content {
+                padding: 20px;
             }
             
             .total-row {
-                font-size: 1rem !important;
-                margin-bottom: 0.25rem !important;
-                justify-content: space-between !important;
+                border-top: 2px solid #2c2c2c;
+                font-size: 16pt;
             }
             
-            .total-final {
-                font-size: 1.2rem !important;
-                padding-top: 0.5rem !important;
-                border-top: 1px solid #333 !important;
+            .print-footer {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+                text-align: center;
+                font-size: 9pt;
+                color: #999;
             }
             
-            .action-buttons {
-                display: none !important;
-            }
-            
-            .back-link {
-                display: none !important;
-            }
-            
-            .status-timeline {
-                display: none !important;
-            }
-            
-            /* Ensure single page */
             @page {
+                margin: 1.5cm;
                 size: A4;
-                margin: 0.5cm;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .order-content {
+                grid-template-columns: 1fr;
             }
         }
         
         @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
+            .nav-links {
+                gap: 15px;
             }
             
-            .header h1 {
-                font-size: 2rem;
+            .nav-links a {
+                font-size: 12px;
+            }
+            
+            .order-header {
+                padding: 20px;
+            }
+            
+            .order-title {
+                font-size: 20px;
+            }
+            
+            .order-items {
+                padding: 20px;
             }
             
             .order-item {
                 flex-direction: column;
                 align-items: flex-start;
-                text-align: left;
             }
             
-            .product-image {
+            .item-image {
                 align-self: center;
-                margin-bottom: 1rem;
-                margin-right: 0;
             }
             
-            .item-quantity,
-            .item-price {
-                margin-left: 0;
-                margin-top: 0.5rem;
+            .item-total {
+                text-align: left;
+                margin-top: 10px;
             }
             
-            .customer-info {
-                grid-template-columns: 1fr;
-            }
-            
-            .status-timeline {
+            .timeline-steps {
                 flex-direction: column;
-                gap: 1rem;
+                gap: 20px;
             }
             
-            .status-timeline::before {
+            .timeline-steps::before {
                 display: none;
-            }
-            
-            .btn {
-                display: block;
-                margin: 0.5rem 0;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Print Header (hanya muncul saat print) -->
+    <!-- Print Only Header -->
+    <div class="print-only">
         <div class="print-header">
-            <h1>TOKO PARFUM PREMIUM</h1>
-            <p>Jl. Contoh No. 123, Kota ABC</p>
-            <p>Telp: (021) 12345678 | Email: info@tokoperfume.com</p>
-            <p>Website: www.tokoperfume.com</p>
-        </div>
-        
-        <div class="header">
-            <a href="orders.php" class="back-link">← Kembali ke Daftar Pesanan</a>
-            <h1>Detail Pesanan</h1>
-        </div>
-
-        <div class="order-card">
-            <div class="order-header">
-                <div class="order-id">Pesanan #<?= $order['id'] ?></div>
-                <div class="order-date">Dibuat pada: <?= date('d F Y, H:i', strtotime($order['created_at'])) ?></div>
-                <div class="order-status">Status: <?= ucfirst($order['status']) ?></div>
+            <div class="print-logo">PARFUM REFILL PREMIUM</div>
+            <div class="print-company-info">
+                <p>Jl. Contoh No. 123, Jakarta Pusat 10110</p>
+                <p>Telp: (021) 1234-5678 | Email: cs@parfumrefill.com</p>
+                <p>Website: www.parfumrefill.com</p>
             </div>
+        </div>
+    </div>
 
-            <div class="order-details">
-                <!-- Status Timeline -->
-                <div class="detail-section">
-                    <h3>📋 Status Pesanan</h3>
-                    <div class="status-timeline">
-                        <div class="timeline-item <?= in_array($order['status'], ['pending', 'confirmed', 'processing', 'shipped', 'delivered']) ? 'active' : '' ?>">
-                            <div class="timeline-icon">1</div>
-                            <div class="timeline-text">Pending</div>
-                        </div>
-                        <div class="timeline-item <?= in_array($order['status'], ['confirmed', 'processing', 'shipped', 'delivered']) ? 'active' : ($order['status'] == 'pending' ? 'current' : '') ?>">
-                            <div class="timeline-icon">2</div>
-                            <div class="timeline-text">Confirmed</div>
-                        </div>
-                        <div class="timeline-item <?= in_array($order['status'], ['processing', 'shipped', 'delivered']) ? 'active' : ($order['status'] == 'confirmed' ? 'current' : '') ?>">
-                            <div class="timeline-icon">3</div>
-                            <div class="timeline-text">Processing</div>
-                        </div>
-                        <div class="timeline-item <?= in_array($order['status'], ['shipped', 'delivered']) ? 'active' : ($order['status'] == 'processing' ? 'current' : '') ?>">
-                            <div class="timeline-icon">4</div>
-                            <div class="timeline-text">Shipped</div>
-                        </div>
-                        <div class="timeline-item <?= $order['status'] == 'delivered' ? 'active' : ($order['status'] == 'shipped' ? 'current' : '') ?>">
-                            <div class="timeline-icon">5</div>
-                            <div class="timeline-text">Delivered</div>
-                        </div>
-                    </div>
-                </div>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
+    </div>
 
-                <!-- Customer Info -->
-                <div class="detail-section">
-                    <h3>👤 Data Pembeli</h3>
-                    <div class="customer-info">
-                        <div class="info-item">
-                            <div class="info-label">Nama:</div>
-                            <div class="info-value"><?= htmlspecialchars($order['nama_customer']) ?></div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Email:</div>
-                            <div class="info-value"><?= htmlspecialchars($order['email_customer']) ?></div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Telepon:</div>
-                            <div class="info-value"><?= htmlspecialchars($order['telepon_customer']) ?></div>
-                        </div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Alamat Pengiriman:</div>
-                        <div class="info-value"><?= nl2br(htmlspecialchars($order['alamat_customer'])) ?></div>
-                    </div>
-                    <?php if ($order['notes']): ?>
-                        <div class="info-item">
-                            <div class="info-label">Catatan:</div>
-                            <div class="info-value"><?= nl2br(htmlspecialchars($order['notes'])) ?></div>
-                        </div>
+    <!-- Header -->
+    <header>
+        <nav class="container">
+            <a href="index.php" class="logo">Parfum Refill</a>
+            <div class="nav-links">
+                <a href="index.php">Home</a>
+                <?php if (isLoggedIn()): ?>
+                    <a href="profile.php">Account</a>
+                    <a href="orders.php">Orders</a>
+                    <a href="logout.php">Logout</a>
+                <?php else: ?>
+                    <a href="login.php">Login</a>
+                    <a href="register.php">Register</a>
+                <?php endif; ?>
+                <a href="cart.php" class="cart-icon">
+                    🛒
+                    <?php if ($cart_count > 0): ?>
+                        <span class="cart-count"><?= $cart_count ?></span>
                     <?php endif; ?>
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.php">Home</a>
+            <span>›</span>
+            <a href="orders.php">My Orders</a>
+            <span>›</span>
+            <span>Order #<?= $order['id'] ?></span>
+        </div>
+    </div>
+
+    <!-- Order Section -->
+    <section class="order-section">
+        <div class="container">
+            <!-- Order Header -->
+            <div class="order-header">
+                <div>
+                    <h1 class="order-title">Order Details</h1>
+                    <div class="order-id-badge">
+                        Order #<?= $order['id'] ?> • <?= date('d F Y, H:i', strtotime($order['created_at'])) ?>
+                    </div>
+                </div>
+                <div class="order-status-badge <?= $order['status'] ?>">
+                    <?= ucfirst($order['status']) ?>
+                </div>
+            </div>
+
+            <!-- Order Content -->
+            <div class="order-content">
+                <!-- Main Content -->
+                <div>
+                    <!-- Status Timeline -->
+                    <div class="sidebar-card timeline">
+                        <div class="timeline-steps">
+                            <?php
+                            $statuses = [
+                                'pending' => 'Pending',
+                                'confirmed' => 'Confirmed',
+                                'processing' => 'Processing',
+                                'shipped' => 'Shipped',
+                                'delivered' => 'Delivered'
+                            ];
+                            
+                            $status_order = array_keys($statuses);
+                            $current_index = array_search($order['status'], $status_order);
+                            
+                            foreach ($statuses as $key => $label):
+                                $step_index = array_search($key, $status_order);
+                                $class = '';
+                                if ($step_index < $current_index || $order['status'] == 'delivered') {
+                                    $class = 'completed';
+                                } elseif ($step_index == $current_index) {
+                                    $class = 'current';
+                                }
+                            ?>
+                                <div class="timeline-step <?= $class ?>">
+                                    <div class="timeline-icon">✓</div>
+                                    <div class="timeline-label"><?= $label ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Order Items -->
+                    <div class="order-main">
+                        <div class="section-title">Order Items</div>
+                        <div class="order-items">
+                            <?php foreach ($order_items as $item): ?>
+                                <div class="order-item">
+                                    <div class="item-image">🧴</div>
+                                    <div class="item-details">
+                                        <div class="item-name"><?= htmlspecialchars($item['nama_parfum']) ?></div>
+                                        <div class="item-price-info">
+                                            <?= formatRupiah($item['harga']) ?> × <?= $item['jumlah'] ?>
+                                        </div>
+                                    </div>
+                                    <div class="item-total">
+                                        <?= formatRupiah($item['harga'] * $item['jumlah']) ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Order Items -->
-                <div class="detail-section">
-                    <h3>🛍️ Detail Produk</h3>
-                    <?php foreach ($order_items as $item): ?>
-                        <div class="order-item">
-                            <div class="product-image">🧴</div>
-                            <div class="item-info">
-                                <div class="item-name"><?= htmlspecialchars($item['nama_parfum']) ?></div>
-                                <div class="item-brand"><?= htmlspecialchars($item['brand']) ?></div>
-                                <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">
-                                    <?= formatRupiah($item['harga']) ?> per item
-                                </div>
+                <!-- Sidebar -->
+                <div class="order-sidebar">
+                    <!-- Order Summary -->
+                    <div class="sidebar-card">
+                        <div class="section-title">Order Summary</div>
+                        <div class="sidebar-card-content">
+                            <div class="info-row">
+                                <span class="info-label">Subtotal</span>
+                                <span class="info-value"><?= formatRupiah($order['total_harga']) ?></span>
                             </div>
-                            <div class="item-quantity">×<?= $item['jumlah'] ?></div>
-                            <div class="item-price"><?= formatRupiah($item['harga'] * $item['jumlah']) ?></div>
+                            <div class="info-row">
+                                <span class="info-label">Shipping</span>
+                                <span class="info-value">Free</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Total</span>
+                                <span class="total-amount"><?= formatRupiah($order['total_harga']) ?></span>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
-                    
-                    <div class="total-section">
-                        <div class="total-row">
-                            <span>Subtotal:</span>
-                            <span><?= formatRupiah($order['total_harga']) ?></span>
+                    </div>
+
+                    <!-- Customer Information -->
+                    <div class="sidebar-card">
+                        <div class="section-title">Customer Information</div>
+                        <div class="sidebar-card-content customer-info">
+                            <p>
+                                <strong>Name</strong>
+                                <?= htmlspecialchars($order['nama_customer']) ?>
+                            </p>
+                            <p>
+                                <strong>Email</strong>
+                                <?= htmlspecialchars($order['email_customer']) ?>
+                            </p>
+                            <p>
+                                <strong>Phone</strong>
+                                <?= htmlspecialchars($order['telepon_customer']) ?>
+                            </p>
+                            <p>
+                                <strong>Shipping Address</strong>
+                                <span class="address-text"><?= nl2br(htmlspecialchars($order['alamat_customer'])) ?></span>
+                            </p>
+                            <?php if ($order['notes']): ?>
+                                <div class="notes-text">
+                                    <strong>Notes:</strong><br>
+                                    <?= nl2br(htmlspecialchars($order['notes'])) ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
-                        <div class="total-row">
-                            <span>Ongkos Kirim:</span>
-                            <span>Gratis</span>
-                        </div>
-                        <div class="total-row total-final">
-                            <span>Total Pembayaran:</span>
-                            <span><?= formatRupiah($order['total_harga']) ?></span>
-                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button onclick="window.print()" class="btn btn-primary">
+                            🖨️ Print Order
+                        </button>
+                        <?php if ($order['status'] == 'pending'): ?>
+                            <a href="<?= $wa_link ?>" target="_blank" class="btn btn-whatsapp">
+                                📱 Confirm Payment
+                            </a>
+                        <?php else: ?>
+                            <a href="<?= $wa_link ?>" target="_blank" class="btn btn-whatsapp">
+                                📱 Contact Seller
+                            </a>
+                        <?php endif; ?>
+                        <a href="orders.php" class="btn btn-secondary">Back to Orders</a>
                     </div>
                 </div>
             </div>
         </div>
+    </section>
 
-        <div class="action-buttons">
-            <button onclick="window.print()" class="btn btn-print">
-                🖨️ Print Pesanan
-            </button>
-            <?php if ($order['status'] == 'pending'): ?>
-                <a href="<?= $wa_link ?>" target="_blank" class="btn btn-whatsapp">
-                    📱 Konfirmasi Pembayaran
-                </a>
-            <?php else: ?>
-                <a href="<?= $wa_link ?>" target="_blank" class="btn btn-whatsapp">
-                    📱 Hubungi Penjual
-                </a>
-            <?php endif; ?>
-            <a href="orders.php" class="btn">Kembali ke Daftar Pesanan</a>
+    <!-- Print Footer -->
+    <div class="print-only">
+        <div class="container">
+            <div class="print-footer">
+                <p>Thank you for your purchase!</p>
+                <p>For questions or concerns, please contact us at cs@parfumrefill.com or call (021) 1234-5678</p>
+                <p style="margin-top: 10px;">This is a computer-generated document. No signature required.</p>
+            </div>
         </div>
     </div>
 
     <script>
-        // Print function with better formatting
-        function printOrder() {
-            // Optional: Add print timestamp
-            const printTime = new Date().toLocaleString('id-ID');
-            const originalTitle = document.title;
-            document.title = `Pesanan #<?= $order['id'] ?> - Dicetak ${printTime}`;
-            
-            window.print();
-            
-            // Restore original title after print
-            setTimeout(() => {
-                document.title = originalTitle;
-            }, 1000);
-        }
-        
-        // Add keyboard shortcut for printing (Ctrl+P)
+        // Keyboard shortcut for printing (Ctrl+P)
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'p') {
                 e.preventDefault();
-                printOrder();
+                window.print();
             }
         });
     </script>

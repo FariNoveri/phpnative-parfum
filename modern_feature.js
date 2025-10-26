@@ -85,7 +85,7 @@ class PerfumeStore {
 
     async fetchSearchSuggestions(query) {
         try {
-            const response = await fetch(`ajax_endpoints.php?action=search_suggestions&q=${encodeURIComponent(query)}`);
+            const response = await fetch(`utils/ajax_endpoints.php?action=search_suggestions&q=${encodeURIComponent(query)}`);
             const data = await response.json();
             
             if (data.suggestions && data.suggestions.length > 0) {
@@ -214,7 +214,7 @@ class PerfumeStore {
             const urlParams = new URLSearchParams(window.location.search);
             urlParams.set('page', this.currentPage);
 
-            const response = await fetch(`ajax_endpoints.php?action=load_more_products&${urlParams.toString()}`);
+            const response = await fetch(`utils/ajax_endpoints.php?action=load_more_products&${urlParams.toString()}`);
             const data = await response.json();
 
             if (data.products && data.products.length > 0) {
@@ -376,7 +376,7 @@ class PerfumeStore {
         document.body.classList.add('modal-open');
 
         try {
-            const response = await fetch(`ajax_endpoints.php?action=quick_view&product_id=${productId}`);
+            const response = await fetch(`utils/ajax_endpoints.php?action=quick_view&product_id=${productId}`);
             const data = await response.json();
 
             if (data.error) {
@@ -525,7 +525,7 @@ class PerfumeStore {
             formData.append('action', 'toggle_wishlist');
             formData.append('product_id', productId);
 
-            const response = await fetch('ajax_endpoints.php', {
+            const response = await fetch('utils/ajax_endpoints.php', {
                 method: 'POST',
                 body: formData
             });
@@ -597,7 +597,7 @@ class PerfumeStore {
     async updateCartCount() {
         try {
             // This would need to be implemented in your backend
-            const response = await fetch('ajax_endpoints.php?action=get_cart_count');
+            const response = await fetch('utils/ajax_endpoints.php?action=get_cart_count');
             const data = await response.json();
             
             const cartCountElement = document.querySelector('.cart-count');
@@ -828,7 +828,7 @@ class PerfumeStore {
     // Additional utility methods
     async checkProductStock(productId) {
         try {
-            const response = await fetch(`ajax_endpoints.php?action=check_stock&product_id=${productId}`);
+            const response = await fetch(`utils/ajax_endpoints.php?action=check_stock&product_id=${productId}`);
             const data = await response.json();
             return data;
         } catch (error) {
@@ -844,7 +844,7 @@ class PerfumeStore {
             formData.append('discount_code', code);
             formData.append('cart_total', cartTotal);
 
-            const response = await fetch('ajax_endpoints.php', {
+            const response = await fetch('utils/ajax_endpoints.php', {
                 method: 'POST',
                 body: formData
             });

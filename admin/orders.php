@@ -4,6 +4,9 @@ requireAdmin();
 
 $action = $_GET['action'] ?? '';
 $order_id = (int)($_GET['id'] ?? 0);
+$load_more = $_GET['load_more'] ?? 0;
+$offset = (int)($_GET['offset'] ?? 0);
+$limit = 20;
 
 // Handle status update
 if ($_POST && $action === 'update_status') {
@@ -19,8 +22,6 @@ if ($_POST && $action === 'update_status') {
         
         logAdminActivity('UPDATE_ORDER_STATUS', "Mengubah status pesanan #$order_id ($customer_name) menjadi $new_status");
         $_SESSION['message'] = "Status pesanan berhasil diubah menjadi " . ucfirst($new_status);
-        logAdminActivity('UPDATE_ORDER_STATUS', "Mengubah status pesanan #$order_id ($customer_name) menjadi $new_status");
-        $_SESSION['message'] = "Status pesanan berhasil diubah menjadi " . ucfirst($new_status);
         $_SESSION['message_type'] = 'success';
     } else {
         $_SESSION['message'] = 'Gagal mengubah status pesanan';
@@ -29,7 +30,80 @@ if ($_POST && $action === 'update_status') {
     redirect('orders.php');
 }
 
-// Get orders with filters
+// Handle AJAX load more
+if ($load_more) {
+    $status_filter = $_GET['status'] ?? '';
+    $search = $_GET['search'] ?? '';
+    $date_from = $_GET['date_from'] ?? '';
+    $date_to = $_GET['date_to'] ?? '';
+    $sort = $_GET['sort'] ?? 'created_at DESC';
+
+    $sql = "SELECT o.*, COUNT(oi.id) as item_count, SUM(oi.jumlah) as total_items 
+            FROM orders o 
+            LEFT JOIN order_items oi ON o.id = oi.order_id 
+            WHERE 1=1";
+    $params = [];
+
+    if ($status_filter) {
+        $sql .= " AND o.status = ?";
+        $params[] = $status_filter;
+    }
+
+    if ($search) {
+        $sql .= " AND (o.nama_customer LIKE ? OR o.email_customer LIKE ? OR o.id LIKE ?)";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+    }
+
+    if ($date_from) {
+        $sql .= " AND DATE(o.created_at) >= ?";
+        $params[] = $date_from;
+    }
+
+    if ($date_to) {
+        $sql .= " AND DATE(o.created_at) <= ?";
+        $params[] = $date_to;
+    }
+
+    $sql .= " GROUP BY o.id ORDER BY o.$sort LIMIT $limit OFFSET $offset";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $orders = $stmt->fetchAll();
+
+    $html = '';
+    foreach ($orders as $order) {
+        $html .= '<tr>
+                    <td><div class="order-id">#'. $order['id'] .'</div></td>
+                    <td>
+                        <div class="customer-info">
+                            <div class="customer-name">'. htmlspecialchars($order['nama_customer']) .'</div>
+                            <div class="customer-contact">
+                                📧 '. htmlspecialchars($order['email_customer']) .'<br>
+                                📱 '. htmlspecialchars($order['telepon_customer']) .'
+                            </div>
+                        </div>
+                    </td>
+                    <td>'. $order['total_items'] .' item'. ($order['total_items'] > 1 ? 's' : '') .'</td>
+                    <td><strong>'. formatRupiah($order['total_harga']) .'</strong></td>
+                    <td><div class="order-status status-'. $order['status'] .'">'. $order['status'] .'</div></td>
+                    <td>'. date('d/m/Y H:i', strtotime($order['created_at'])) .'</td>
+                    <td>
+                        <div class="actions">
+                            <button onclick="viewOrder('. $order['id'] .')" class="btn btn-sm">👁️ Lihat</button>
+                            <button onclick="updateStatus('. $order['id'] .', \''. $order['status'] .'\')" class="btn btn-sm btn-warning">✏️ Status</button>
+                        </div>
+                    </td>
+                  </tr>';
+    }
+
+    header('Content-Type: application/json');
+    echo json_encode(['html' => $html, 'has_more' => count($orders) == $limit]);
+    exit;
+}
+
+// Get orders with filters for initial load
 $status_filter = $_GET['status'] ?? '';
 $search = $_GET['search'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
@@ -64,7 +138,7 @@ if ($date_to) {
     $params[] = $date_to;
 }
 
-$sql .= " GROUP BY o.id ORDER BY o.$sort";
+$sql .= " GROUP BY o.id ORDER BY o.$sort LIMIT $limit";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -100,7 +174,8 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Pesanan - Admin</title>
+    <title>Kelola Pesanan - Parfum Refill Premium</title>
+    <meta name="description" content="Kelola pesanan pelanggan di panel admin Toko Parfum Refill Premium.">
     <style>
         * {
             margin: 0;
@@ -109,9 +184,10 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         body {
-            font-family: 'Arial', sans-serif;
-            background: #f8f9fa;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .admin-container {
@@ -119,31 +195,45 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
             min-height: 100vh;
         }
         
+        /* Sidebar */
         .sidebar {
             width: 280px;
-            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
+            background: #fff;
+            color: #2c2c2c;
             padding: 2rem 1rem;
             position: fixed;
             height: 100vh;
             overflow-y: auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
         .sidebar-header {
             text-align: center;
             margin-bottom: 3rem;
             padding-bottom: 2rem;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .admin-logo {
-            font-size: 2rem;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
             margin-bottom: 0.5rem;
         }
         
         .admin-title {
             font-size: 1.2rem;
-            opacity: 0.9;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .admin-name {
+            font-size: 0.9rem;
+            color: #999;
+            margin-top: 0.5rem;
         }
         
         .nav-menu {
@@ -157,19 +247,23 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         .nav-link {
             display: flex;
             align-items: center;
-            color: white;
+            color: #2c2c2c;
             text-decoration: none;
             padding: 1rem;
-            border-radius: 10px;
+            border-radius: 5px;
             transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             opacity: 0.8;
         }
         
         .nav-link:hover,
         .nav-link.active {
-            background: rgba(255,255,255,0.2);
+            background: #ffeef5;
             opacity: 1;
-            transform: translateX(5px);
+            color: #c41e3a;
         }
         
         .nav-icon {
@@ -177,17 +271,18 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
             font-size: 1.2rem;
         }
         
+        /* Main Content */
         .main-content {
             flex: 1;
             margin-left: 280px;
             padding: 2rem;
         }
         
+        /* Top Bar */
         .top-bar {
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
@@ -195,8 +290,10 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .page-title {
-            font-size: 2rem;
-            color: #333;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #2c2c2c;
             margin: 0;
         }
         
@@ -207,17 +304,21 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .logout-btn {
-            background: #e74c3c;
+            background: #c41e3a;
             color: white;
-            padding: 0.7rem 1.5rem;
+            padding: 10px 20px;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             text-decoration: none;
-            transition: background 0.3s;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            cursor: pointer;
         }
         
         .logout-btn:hover {
-            background: #c0392b;
+            background: #a01628;
         }
         
         .stats-row {
@@ -228,16 +329,22 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .stat-card {
-            background: white;
+            background: #fff;
             padding: 1.5rem;
             border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
         }
         
         .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
+            font-size: 2.5rem;
+            font-weight: 400;
+            color: #c41e3a;
             margin-bottom: 0.5rem;
         }
         
@@ -245,24 +352,19 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
             color: #666;
             font-size: 0.9rem;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
-        .status-pending .stat-number { color: #f39c12; }
-        .status-confirmed .stat-number { color: #27ae60; }
-        .status-processing .stat-number { color: #3498db; }
-        .status-shipped .stat-number { color: #9b59b6; }
-        .status-delivered .stat-number { color: #2ecc71; }
-        .status-cancelled .stat-number { color: #e74c3c; }
-        
         .content-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             overflow: hidden;
+            margin-bottom: 2rem;
         }
         
         .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #c41e3a 0%, #a01628 100%);
             color: white;
             padding: 1.5rem 2rem;
             display: flex;
@@ -272,12 +374,13 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         
         .card-title {
             font-size: 1.3rem;
-            font-weight: bold;
+            font-weight: 300;
+            letter-spacing: 0.5px;
         }
         
         .filters {
             padding: 2rem;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .filter-form {
@@ -293,58 +396,78 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .form-group label {
-            font-weight: bold;
+            font-weight: 400;
             margin-bottom: 0.5rem;
-            color: #555;
-            font-size: 0.9rem;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .form-group input,
         .form-group select {
-            padding: 0.7rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            background: #fafafa;
+            transition: all 0.3s;
         }
         
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #c41e3a;
+            background: #fff;
         }
         
         .btn {
-            background: #667eea;
+            background: #c41e3a;
             color: white;
-            padding: 0.8rem 1.5rem;
+            padding: 12px 30px;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
             transition: all 0.3s;
-            font-weight: 500;
-            text-align: center;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 400;
         }
         
         .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
+            background: #a01628;
         }
         
-        .btn-success { background: #27ae60; }
-        .btn-success:hover { background: #229954; }
+        .btn-success {
+            background: #c41e3a;
+        }
         
-        .btn-warning { background: #f39c12; }
-        .btn-warning:hover { background: #e67e22; }
+        .btn-success:hover {
+            background: #a01628;
+        }
         
-        .btn-danger { background: #e74c3c; }
-        .btn-danger:hover { background: #c0392b; }
+        .btn-warning {
+            background: #c41e3a;
+        }
+        
+        .btn-warning:hover {
+            background: #a01628;
+        }
+        
+        .btn-danger {
+            background: #c41e3a;
+        }
+        
+        .btn-danger:hover {
+            background: #a01628;
+        }
         
         .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: 8px 20px;
+            font-size: 12px;
         }
         
         .table-container {
@@ -359,46 +482,50 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         
         .orders-table th,
         .orders-table td {
-            padding: 1rem;
+            padding: 15px 10px;
             text-align: left;
-            border-bottom: 1px solid #eee;
-            vertical-align: middle;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .orders-table th {
-            background: #f8f9fa;
-            font-weight: bold;
-            color: #555;
+            background: #fafafa;
+            font-weight: 400;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .orders-table tr:hover {
-            background: #f8f9fa;
+            background: #ffeef5;
         }
         
         .order-id {
-            font-weight: bold;
-            color: #1e3c72;
+            font-weight: 400;
+            color: #c41e3a;
         }
         
         .customer-info {
-            margin-bottom: 0.25rem;
+            margin-bottom: 5px;
         }
         
         .customer-name {
-            font-weight: bold;
+            font-weight: 400;
+            color: #2c2c2c;
         }
         
         .customer-contact {
-            font-size: 0.9rem;
-            color: #666;
+            font-size: 12px;
+            color: #999;
         }
         
         .order-status {
-            padding: 0.4rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: bold;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
             text-align: center;
             min-width: 80px;
             display: inline-block;
@@ -413,7 +540,7 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         
         .actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 10px;
             flex-wrap: wrap;
         }
         
@@ -430,16 +557,17 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .modal-content {
-            background: white;
+            background: #fff;
             margin: 0 auto;
-            border-radius: 15px;
+            border-radius: 10px;
             max-width: 600px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         
         .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #c41e3a 0%, #a01628 100%);
             color: white;
             padding: 1.5rem 2rem;
             display: flex;
@@ -458,6 +586,11 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
             font-size: 1.5rem;
             cursor: pointer;
             padding: 0.5rem;
+            transition: color 0.3s;
+        }
+        
+        .close-modal:hover {
+            color: #ffeef5;
         }
         
         .order-detail-section {
@@ -466,9 +599,11 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         
         .order-detail-section h4 {
             margin-bottom: 1rem;
-            color: #333;
+            color: #2c2c2c;
             padding-bottom: 0.5rem;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 16px;
+            font-weight: 400;
         }
         
         .detail-grid {
@@ -482,13 +617,17 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .detail-label {
-            font-weight: bold;
-            color: #555;
+            font-weight: 400;
+            color: #666;
             margin-bottom: 0.25rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .detail-value {
-            color: #333;
+            color: #2c2c2c;
+            font-size: 14px;
         }
         
         .order-items-table {
@@ -499,134 +638,164 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         
         .order-items-table th,
         .order-items-table td {
-            padding: 0.8rem;
+            padding: 15px 10px;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f0f0f0;
         }
         
         .order-items-table th {
-            background: #f8f9fa;
+            background: #fafafa;
+            font-weight: 400;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .alert {
-            padding: 1rem;
-            margin-bottom: 2rem;
-            border-radius: 8px;
-            border: 1px solid;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 3px solid;
+            font-size: 14px;
+            border-radius: 5px;
         }
         
         .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #22c55e;
         }
         
         .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
+        }
+        
+        .loading-indicator {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+            display: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #c41e3a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .no-more {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+            font-style: italic;
+            display: none;
         }
         
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
+                transition: transform 0.3s;
             }
-            
             .main-content {
                 margin-left: 0;
                 padding: 1rem;
             }
-            
+            .top-bar {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
             .filter-form {
                 grid-template-columns: 1fr;
             }
-            
             .stats-row {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
             .table-container {
                 padding: 1rem;
             }
-            
             .orders-table th,
             .orders-table td {
-                padding: 0.5rem;
-                font-size: 0.9rem;
+                padding: 10px 5px;
+                font-size: 12px;
             }
         }
     </style>
 </head>
 <body>
+
     <div class="admin-container">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="admin-logo">🌸</div>
+                <div class="admin-logo">Parfum Refill</div>
                 <div class="admin-title">Admin Panel</div>
+                <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
             </div>
             
             <nav>
                 <ul class="nav-menu">
                     <li class="nav-item">
                         <a href="dashboard.php" class="nav-link">
-                            <span class="nav-icon">📊</span>
-                            Dashboard
+                            <span class="nav-icon">📊</span> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="products.php" class="nav-link">
-                            <span class="nav-icon">🧴</span>
-                            Kelola Produk
+                            <span class="nav-icon">🧴</span> Kelola Produk
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="orders.php" class="nav-link active">
-                            <span class="nav-icon">📦</span>
-                            Kelola Pesanan
+                            <span class="nav-icon">🛒</span> Kelola Pesanan
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="reviews.php" class="nav-link">
-                            <span class="nav-icon">⭐</span>
-                            Kelola Review
+                            <span class="nav-icon">⭐</span> Kelola Review
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="users.php" class="nav-link">
-                            <span class="nav-icon">👥</span>
-                            Kelola User
+                            <span class="nav-icon">👥</span> Kelola User
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="reports.php" class="nav-link">
-                            <span class="nav-icon">📈</span>
-                            Laporan
+                            <span class="nav-icon">📈</span> Laporan
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="settings.php" class="nav-link">  <!-- Tambah link ini -->
-                            <span class="nav-icon">⚙️</span>
-                            Pengaturan
+                        <a href="settings.php" class="nav-link">
+                            <span class="nav-icon">⚙️</span> Pengaturan
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="../index.php" class="nav-link" target="_blank">
-                            <span class="nav-icon">🌐</span>
-                            Lihat Website
+                            <span class="nav-icon">🌐</span> Lihat Website
                         </a>
                     </li>
                 </ul>
             </nav>
         </aside>
 
-
         <!-- Main Content -->
         <main class="main-content">
             <div class="top-bar">
                 <h1 class="page-title">📦 Kelola Pesanan</h1>
                 <div class="user-info">
-                    <span><?= $_SESSION['user_name'] ?></span>
+                    <span>Selamat datang, <strong><?= $_SESSION['user_name'] ?></strong></span>
                     <a href="../logout.php" class="logout-btn">Logout</a>
                 </div>
             </div>
@@ -640,27 +809,27 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
             <!-- Status Statistics -->
             <div class="stats-row">
-                <div class="stat-card status-pending">
+                <div class="stat-card">
                     <div class="stat-number"><?= $status_stats['pending'] ?? 0 ?></div>
                     <div class="stat-label">Pending</div>
                 </div>
-                <div class="stat-card status-confirmed">
+                <div class="stat-card">
                     <div class="stat-number"><?= $status_stats['confirmed'] ?? 0 ?></div>
                     <div class="stat-label">Confirmed</div>
                 </div>
-                <div class="stat-card status-processing">
+                <div class="stat-card">
                     <div class="stat-number"><?= $status_stats['processing'] ?? 0 ?></div>
                     <div class="stat-label">Processing</div>
                 </div>
-                <div class="stat-card status-shipped">
+                <div class="stat-card">
                     <div class="stat-number"><?= $status_stats['shipped'] ?? 0 ?></div>
                     <div class="stat-label">Shipped</div>
                 </div>
-                <div class="stat-card status-delivered">
+                <div class="stat-card">
                     <div class="stat-number"><?= $status_stats['delivered'] ?? 0 ?></div>
                     <div class="stat-label">Delivered</div>
                 </div>
-                <div class="stat-card status-cancelled">
+                <div class="stat-card">
                     <div class="stat-number"><?= $status_stats['cancelled'] ?? 0 ?></div>
                     <div class="stat-label">Cancelled</div>
                 </div>
@@ -674,7 +843,7 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
                 
                 <!-- Filters -->
                 <div class="filters">
-                    <form method="GET" class="filter-form">
+                    <form method="GET" class="filter-form" id="filterForm">
                         <div class="form-group">
                             <label>Cari Pesanan</label>
                             <input type="text" name="search" placeholder="ID, nama, atau email..."
@@ -721,79 +890,61 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
                         
                         <div class="form-group">
                             <label>&nbsp;</label>
-                            <a href="orders.php" class="btn btn-warning">🔄 Reset</a>
+                            <a href="orders.php" class="btn btn-secondary">🔄 Reset</a>
                         </div>
                     </form>
                 </div>
                 
                 <!-- Orders Table -->
                 <div class="table-container">
-                    <?php if (empty($orders)): ?>
-                        <div style="text-align: center; padding: 3rem; color: #666;">
-                            <h3>Tidak ada pesanan ditemukan</h3>
-                            <p>Belum ada pesanan yang masuk atau sesuai dengan filter yang dipilih</p>
-                        </div>
-                    <?php else: ?>
-                        <table class="orders-table">
-                            <thead>
+                    <table class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>ID Pesanan</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Tanggal</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <?php foreach ($orders as $order): ?>
                                 <tr>
-                                    <th>ID Pesanan</th>
-                                    <th>Customer</th>
-                                    <th>Items</th>
-                                    <th>Total</th>
-                                    <th>Status</th>
-                                    <th>Tanggal</th>
-                                    <th>Aksi</th>
+                                    <td><div class="order-id">#<?= $order['id'] ?></div></td>
+                                    <td>
+                                        <div class="customer-info">
+                                            <div class="customer-name"><?= htmlspecialchars($order['nama_customer']) ?></div>
+                                            <div class="customer-contact">
+                                                📧 <?= htmlspecialchars($order['email_customer']) ?><br>
+                                                📱 <?= htmlspecialchars($order['telepon_customer']) ?>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><?= $order['total_items'] ?> item<?= $order['total_items'] > 1 ? 's' : '' ?></td>
+                                    <td><strong><?= formatRupiah($order['total_harga']) ?></strong></td>
+                                    <td><div class="order-status status-<?= $order['status'] ?>"><?= $order['status'] ?></div></td>
+                                    <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
+                                    <td>
+                                        <div class="actions">
+                                            <button onclick="viewOrder(<?= $order['id'] ?>)" class="btn btn-sm">👁️ Lihat</button>
+                                            <button onclick="updateStatus(<?= $order['id'] ?>, '<?= $order['status'] ?>')" class="btn btn-sm btn-secondary">✏️ Status</button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($orders as $order): ?>
-                                    <tr>
-                                        <td>
-                                            <div class="order-id">#<?= $order['id'] ?></div>
-                                        </td>
-                                        <td>
-                                            <div class="customer-info">
-                                                <div class="customer-name"><?= htmlspecialchars($order['nama_customer']) ?></div>
-                                                <div class="customer-contact">
-                                                    📧 <?= htmlspecialchars($order['email_customer']) ?><br>
-                                                    📱 <?= htmlspecialchars($order['telepon_customer']) ?>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <?= $order['total_items'] ?> item<?= $order['total_items'] > 1 ? 's' : '' ?>
-                                        </td>
-                                        <td>
-                                            <strong><?= formatRupiah($order['total_harga']) ?></strong>
-                                        </td>
-                                        <td>
-                                            <div class="order-status status-<?= $order['status'] ?>">
-                                                <?= $order['status'] ?>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <?= date('d/m/Y H:i', strtotime($order['created_at'])) ?>
-                                        </td>
-                                        <td>
-                                            <div class="actions">
-                                                <button onclick="viewOrder(<?= $order['id'] ?>)" class="btn btn-sm">
-                                                    👁️ Lihat
-                                                </button>
-                                                <button onclick="updateStatus(<?= $order['id'] ?>, '<?= $order['status'] ?>')" class="btn btn-sm btn-warning">
-                                                    ✏️ Status
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                        
-                        <div style="margin-top: 2rem; text-align: center; color: #666;">
-                            Total: <?= count($orders) ?> pesanan
-                        </div>
-                    <?php endif; ?>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    
+                    <div id="loading" class="loading-indicator">
+                        <div class="loading-spinner"></div>
+                        Memuat...
+                    </div>
+                    
+                    <div id="no-more" class="no-more">
+                        Sudah tidak ada lagi
+                    </div>
                 </div>
             </div>
         </main>
@@ -836,7 +987,7 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
                     </div>
                     
                     <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                        <button type="button" onclick="closeStatusModal()" class="btn">Batal</button>
+                        <button type="button" onclick="closeStatusModal()" class="btn btn-secondary">Batal</button>
                         <button type="submit" class="btn btn-success">💾 Update Status</button>
                     </div>
                 </form>
@@ -845,6 +996,64 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
     </div>
 
     <script>
+        let currentOffset = <?= $limit ?>;
+        let isLoading = false;
+        let hasMore = true;
+        let filterParams = new URLSearchParams(window.location.search);
+
+        const tbody = document.getElementById('ordersTableBody');
+        const loadingEl = document.getElementById('loading');
+        const noMoreEl = document.getElementById('no-more');
+
+        function loadMoreOrders() {
+            if (isLoading || !hasMore) return;
+            
+            isLoading = true;
+            loadingEl.style.display = 'block';
+            
+            const url = `orders.php?load_more=1&offset=${currentOffset}&${filterParams.toString()}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    isLoading = false;
+                    loadingEl.style.display = 'none';
+                    
+                    if (data.html) {
+                        tbody.insertAdjacentHTML('beforeend', data.html);
+                        currentOffset += <?= $limit ?>;
+                    }
+                    
+                    hasMore = data.has_more;
+                    if (!hasMore) {
+                        noMoreEl.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    isLoading = false;
+                    loadingEl.style.display = 'none';
+                    console.error('Error:', error);
+                });
+        }
+        
+        // Infinite scroll
+        window.addEventListener('scroll', () => {
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+                loadMoreOrders();
+            }
+        });
+        
+        // Filter form
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            filterParams = new URLSearchParams(new FormData(this));
+            currentOffset = <?= $limit ?>;
+            hasMore = true;
+            noMoreEl.style.display = 'none';
+            tbody.innerHTML = '';
+            loadMoreOrders();
+        });
+        
         function viewOrder(orderId) {
             document.getElementById('orderModal').style.display = 'block';
             document.getElementById('modalTitle').textContent = 'Detail Pesanan #' + orderId;

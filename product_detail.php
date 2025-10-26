@@ -55,14 +55,22 @@ $reviews_stmt->execute([$product_id, $user_id]);
 $reviews = $reviews_stmt->fetchAll();
 
 // Log view
-$log_sql = "INSERT INTO product_views (product_id, user_id, ip_address, session_id, viewed_at) VALUES (?, ?, ?, ?, NOW())";
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$session_id = session_id();
-$pdo->prepare($log_sql)->execute([$product_id, $user_id, $ip, $session_id]);
+if (!isset($_SESSION['viewed_products'][$product_id])) {
+    $log_sql = "INSERT INTO product_views (product_id, user_id, ip_address, session_id, viewed_at) VALUES (?, ?, ?, ?, NOW())";
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $session_id = session_id();
+    $pdo->prepare($log_sql)->execute([$product_id, $user_id, $ip, $session_id]);
+    $_SESSION['viewed_products'][$product_id] = true;
+}
 
 // Fetch similar products
 $similar_sql = "SELECT p.*, 
-                (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image
+                (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) as primary_image,
+                CASE 
+                    WHEN p.discount_percentage > 0 AND p.original_price IS NOT NULL
+                    THEN ROUND(p.original_price * (1 - p.discount_percentage/100), 0)
+                    ELSE p.harga
+                END as final_price
                 FROM products p 
                 WHERE p.id != ? AND p.kategori = ?
                 ORDER BY RAND() LIMIT 4";
@@ -75,20 +83,18 @@ function renderStars($rating) {
     $half_star = ($rating - $full_stars) >= 0.5;
     $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
     
-    $color_class = '';
-    if ($rating <= 2) {
-        $color_class = 'star-poor';
-    } elseif ($rating <= 3) {
-        $color_class = 'star-average';
-    } elseif ($rating <= 4) {
-        $color_class = 'star-good';
-    } else {
-        $color_class = 'star-excellent';
-    }
+    $color = '#d4af37'; // Gold color for all stars
     
-    $stars = str_repeat("<span class='star $color_class'>⭐</span>", $full_stars);
-    if ($half_star) $stars .= "<span class='star $color_class'>½</span>";
-    $stars .= str_repeat("<span class='star star-empty'>☆</span>", $empty_stars);
+    $stars = '';
+    for ($i = 0; $i < $full_stars; $i++) {
+        $stars .= "<span class='star full'>★</span>";
+    }
+    if ($half_star) {
+        $stars .= "<span class='star half'>★</span>";
+    }
+    for ($i = 0; $i < $empty_stars; $i++) {
+        $stars .= "<span class='star empty'>☆</span>";
+    }
     
     return $stars;
 }
@@ -126,8 +132,8 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #2c2c2c;
+            background-color: #fff;
         }
         
         .container {
@@ -136,11 +142,20 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             padding: 0 20px;
         }
         
+        /* Top Bar */
+        .top-bar {
+            background: #f8f8f8;
+            padding: 8px 0;
+            font-size: 12px;
+            text-align: center;
+            color: #666;
+        }
+        
+        /* Header */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -150,178 +165,251 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
         }
         
         .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            text-decoration: none;
         }
         
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 35px;
             align-items: center;
         }
         
         .nav-links a {
-            color: white;
+            color: #2c2c2c;
             text-decoration: none;
-            transition: opacity 0.3s;
-            padding: 0.5rem;
-            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 400;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .nav-links a:hover {
-            background: rgba(255,255,255,0.2);
+            color: #c41e3a;
         }
         
         .cart-icon {
             position: relative;
-            background: rgba(255,255,255,0.2);
-            padding: 0.8rem;
-            border-radius: 50%;
-            transition: background 0.3s;
-        }
-        
-        .cart-icon:hover {
-            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+            font-size: 20px;
         }
         
         .cart-count {
             position: absolute;
             top: -8px;
             right: -8px;
-            background: #e74c3c;
+            background: #c41e3a;
             color: white;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            font-size: 0.8rem;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 600;
+        }
+
+        .back-button {
+            background: transparent;
+            color: #666;
+            padding: 12px 30px;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            margin: 30px 0 20px;
+        }
+
+        .back-button:hover {
+            border-color: #2c2c2c;
+            color: #2c2c2c;
         }
 
         .product-detail {
-            padding: 3rem 0;
+            padding: 30px 0 60px;
         }
         
         .product-header {
-            display: flex;
-            gap: 3rem;
-            margin-bottom: 3rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
         }
         
         .product-images {
-            flex: 1;
-            min-width: 400px;
+            position: sticky;
+            top: 100px;
+            height: fit-content;
         }
         
         .main-image {
             width: 100%;
-            height: 500px;
+            height: 600px;
             object-fit: cover;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: #fafafa;
+            margin-bottom: 20px;
         }
         
         .thumbnail-gallery {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-            overflow-x: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
         }
         
         .thumbnail {
-            width: 100px;
+            width: 100%;
             height: 100px;
             object-fit: cover;
-            border-radius: 8px;
             cursor: pointer;
-            transition: transform 0.3s;
+            transition: all 0.3s;
             border: 2px solid transparent;
+            background: #fafafa;
         }
         
         .thumbnail:hover {
-            transform: scale(1.05);
-            border-color: #667eea;
+            border-color: #c41e3a;
         }
         
         .product-info {
-            flex: 1;
-            min-width: 300px;
+            padding-top: 20px;
         }
         
         .product-title {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            color: #2c2c2c;
         }
         
         .product-brand {
-            font-size: 1.2rem;
-            color: #666;
-            margin-bottom: 1rem;
+            font-size: 14px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
         }
         
         .product-rating {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+            gap: 10px;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .stars {
+            color: #d4af37;
+            font-size: 16px;
+        }
+        
+        .star {
+            color: #d4af37;
+            position: relative;
+            display: inline-block;
+        }
+
+        .star.full {
+            color: #d4af37;
+        }
+
+        .star.half {
+            color: #ddd;
+        }
+
+        .star.half::before {
+            content: '★';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 50%;
+            overflow: hidden;
+            color: #d4af37;
+        }
+
+        .star.empty {
+            color: #ddd;
+        }
+
+        .rating-text {
+            color: #999;
+            font-size: 13px;
         }
         
         .product-price {
-            font-size: 2rem;
-            color: #e74c3c;
-            font-weight: bold;
-            margin-bottom: 1rem;
+            margin-bottom: 25px;
+            border-top: 1px solid #f0f0f0;
+            border-bottom: 1px solid #f0f0f0;
+            padding: 25px 0;
+        }
+
+        .price-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .current-price {
+            font-size: 32px;
+            font-weight: 400;
+            color: #c41e3a;
         }
         
         .original-price {
-            font-size: 1.2rem;
+            font-size: 18px;
             color: #999;
             text-decoration: line-through;
-            margin-left: 1rem;
         }
         
-        .discount {
-            background: #e74c3c;
-            color: white;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 1rem;
-            margin-left: 1rem;
+        .discount-badge {
+            background: #fff0f0;
+            color: #c41e3a;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .product-meta {
             display: flex;
-            gap: 2rem;
-            margin-bottom: 2rem;
+            gap: 25px;
+            font-size: 13px;
             color: #666;
         }
 
         .volume-selection {
-            margin-bottom: 2rem;
+            margin-bottom: 30px;
         }
 
         .volume-label {
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #2c2c2c;
+            font-weight: 600;
+            margin-bottom: 15px;
             display: block;
         }
 
         .volume-options {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
         }
 
         .volume-option {
@@ -336,52 +424,47 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
 
         .volume-option label {
             display: block;
-            padding: 1rem 1.5rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            padding: 20px 15px;
+            border: 1px solid #e0e0e0;
             cursor: pointer;
             transition: all 0.3s;
             background: white;
-            min-width: 120px;
             text-align: center;
         }
 
         .volume-option input[type="radio"]:checked + label {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #2c2c2c;
+            background: #2c2c2c;
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         .volume-option label:hover {
-            border-color: #667eea;
-            transform: translateY(-1px);
+            border-color: #2c2c2c;
         }
 
         .volume-ml {
             display: block;
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 0.3rem;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
 
         .volume-price {
             display: block;
-            font-size: 0.95rem;
+            font-size: 14px;
         }
 
         .volume-stock {
             display: block;
-            font-size: 0.85rem;
-            margin-top: 0.3rem;
-            opacity: 0.8;
+            font-size: 11px;
+            margin-top: 8px;
+            opacity: 0.7;
         }
 
         .volume-option.out-of-stock label {
             background: #f5f5f5;
             cursor: not-allowed;
-            opacity: 0.6;
+            opacity: 0.5;
         }
 
         .volume-option.out-of-stock input[type="radio"] {
@@ -389,378 +472,508 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
         }
 
         .quantity-selection {
-            margin-bottom: 2rem;
+            margin-bottom: 30px;
         }
 
         .quantity-label {
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #2c2c2c;
+            font-weight: 600;
+            margin-bottom: 15px;
             display: block;
         }
 
         .quantity-control {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 20px;
         }
 
         .quantity-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            background: white;
+            color: #2c2c2c;
+            border: 1px solid #e0e0e0;
+            width: 45px;
+            height: 45px;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 18px;
             transition: all 0.3s;
+            font-weight: 300;
         }
 
-        .quantity-btn:hover {
-            background: #764ba2;
-            transform: scale(1.1);
+        .quantity-btn:hover:not(:disabled) {
+            background: #2c2c2c;
+            color: white;
+            border-color: #2c2c2c;
         }
 
         .quantity-btn:disabled {
-            background: #ccc;
+            background: #f5f5f5;
             cursor: not-allowed;
-            transform: scale(1);
+            opacity: 0.5;
         }
 
         .quantity-input {
             width: 80px;
             text-align: center;
-            font-size: 1.2rem;
-            padding: 0.5rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            font-size: 16px;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            background: #fafafa;
         }
         
         .add-to-cart {
-            background: #27ae60;
+            background: #2c2c2c;
             color: white;
             border: none;
-            padding: 1rem 2rem;
-            border-radius: 8px;
+            padding: 18px 40px;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             transition: all 0.3s;
             width: 100%;
+            font-weight: 600;
         }
         
-        .add-to-cart:hover {
-            background: #229954;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        .add-to-cart:hover:not(:disabled) {
+            background: #c41e3a;
         }
 
         .add-to-cart:disabled {
             background: #95a5a6;
             cursor: not-allowed;
-            transform: none;
         }
         
         .product-description {
-            margin-bottom: 3rem;
+            margin-bottom: 60px;
+        }
+
+        .product-description h2 {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+        }
+
+        .product-description p {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #666;
         }
         
         .product-specs {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 3rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 60px;
         }
         
         .spec-item {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background: #fafafa;
+            padding: 25px;
+            border: 1px solid #f0f0f0;
         }
         
         .spec-title {
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-            color: #667eea;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c2c2c;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .spec-item p {
+            font-size: 14px;
+            color: #666;
         }
         
         .reviews-section {
-            margin-bottom: 3rem;
+            margin-bottom: 60px;
+        }
+
+        .reviews-section h2 {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 30px;
+            color: #2c2c2c;
+            text-transform: uppercase;
         }
         
         .review {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 1rem;
+            background: #fafafa;
+            padding: 30px;
+            border: 1px solid #f0f0f0;
+            margin-bottom: 20px;
             position: relative;
         }
         
         .review-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
+            align-items: flex-start;
+            margin-bottom: 15px;
         }
         
         .review-author {
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .review-date {
             color: #999;
-            font-size: 0.9rem;
+            font-size: 12px;
         }
 
         .review-rating {
-            margin-bottom: 0.5rem;
-            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .review h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c2c2c;
+        }
+
+        .review p {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #666;
         }
 
         .review-status {
             color: #e67e22;
             font-style: italic;
-            font-size: 0.9rem;
-            margin-top: 0.5rem;
+            font-size: 12px;
+            margin-top: 15px;
         }
 
         .review-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 10px;
         }
 
         .btn-delete {
-            background: #e74c3c;
+            background: #c41e3a;
             color: white;
             border: none;
-            padding: 0.3rem 0.8rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
+            padding: 8px 15px;
+            font-size: 11px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
         }
 
         .btn-delete:hover {
-            background: #c0392b;
+            background: #a01628;
         }
 
         .review-form {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 2rem;
+            background: #fafafa;
+            padding: 40px;
+            border: 1px solid #f0f0f0;
+            margin-bottom: 40px;
         }
 
         .review-form h3 {
-            margin-bottom: 1rem;
-            color: #667eea;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+            color: #2c2c2c;
         }
 
         .form-group-review {
-            margin-bottom: 1rem;
+            margin-bottom: 25px;
         }
 
         .form-group-review label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2c2c2c;
+            font-weight: 600;
         }
 
         .form-group-review input,
-        .form-group-review textarea,
-        .form-group-review select {
+        .form-group-review textarea {
             width: 100%;
-            padding: 0.8rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            font-size: 14px;
+            background: white;
+            font-family: inherit;
+        }
+
+        .form-group-review input:focus,
+        .form-group-review textarea:focus {
+            outline: none;
+            border-color: #2c2c2c;
         }
 
         .form-group-review textarea {
-            min-height: 100px;
+            min-height: 120px;
             resize: vertical;
         }
 
-        .stars-container {
+        .stars-input {
             display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+            gap: 10px;
+            margin-top: 10px;
         }
 
-        .star {
-            font-size: 2rem;
+        .star-input {
+            font-size: 28px;
             cursor: pointer;
             color: #ddd;
             transition: color 0.3s;
         }
 
-        .star.selected.star-poor { color: #e74c3c; }
-        .star.selected.star-average { color: #f1c40f; }
-        .star.selected.star-good { color: #2ecc71; }
-        .star.selected.star-excellent { color: #ffd700; }
-        .star.star-empty { color: #ddd; }
-
-        .star-poor { color: #e74c3c; }
-        .star-average { color: #f1c40f; }
-        .star-good { color: #2ecc71; }
-        .star-excellent { color: #ffd700; }
+        .star-input:hover,
+        .star-input.selected {
+            color: #d4af37;
+        }
 
         .submit-review {
-            background: #667eea;
+            background: #2c2c2c;
             color: white;
             border: none;
-            padding: 1rem 2rem;
-            border-radius: 8px;
+            padding: 15px 40px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             transition: all 0.3s;
+            font-weight: 600;
         }
 
         .submit-review:hover {
-            background: #5a67d8;
-            transform: translateY(-2px);
+            background: #c41e3a;
         }
         
         .similar-products {
-            margin-top: 3rem;
+            margin-top: 80px;
+        }
+
+        .similar-products h2 {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+            color: #2c2c2c;
+            text-transform: uppercase;
         }
         
         .similar-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 2rem;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
         }
         
         .similar-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            overflow: hidden;
-            transition: transform 0.3s;
+            background: #fff;
+            transition: all 0.3s;
+            position: relative;
         }
 
         .similar-card:hover {
             transform: translateY(-5px);
         }
         
+        .similar-image-wrapper {
+            position: relative;
+            padding-bottom: 130%;
+            background: #fafafa;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
         .similar-image {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 200px;
+            height: 100%;
             object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .similar-card:hover .similar-image {
+            transform: scale(1.08);
         }
         
         .similar-info {
-            padding: 1rem;
+            padding: 0 10px;
         }
         
         .similar-name {
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+            font-size: 15px;
+            font-weight: 400;
+            margin-bottom: 10px;
+            color: #2c2c2c;
+            min-height: 44px;
+        }
+
+        .similar-name a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .similar-name a:hover {
+            color: #c41e3a;
         }
         
         .similar-price {
-            color: #e74c3c;
-            font-weight: bold;
+            font-size: 20px;
+            font-weight: 400;
+            color: #c41e3a;
         }
 
-        .back-button {
-            background: #6c757d;
-            color: white;
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: all 0.3s;
-            margin-bottom: 1rem;
-        }
-
-        .back-button:hover {
-            background: #5a6268;
-            transform: translateY(-1px);
-        }
-
+        /* Footer */
         footer {
-            background: #2c3e50;
-            color: white;
-            padding: 3rem 0 1rem;
-            margin-top: 4rem;
+            background: #f8f8f8;
+            padding: 60px 0 30px;
+            margin-top: 80px;
         }
         
         .footer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
+            gap: 40px;
+            margin-bottom: 40px;
         }
         
         .footer-section h3 {
-            margin-bottom: 1rem;
-            color: #ecf0f1;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: #2c2c2c;
         }
         
-        .footer-section p, .footer-section a {
-            color: #bdc3c7;
+        .footer-section p,
+        .footer-section a {
+            font-size: 13px;
+            color: #666;
             text-decoration: none;
-            line-height: 1.8;
+            line-height: 2;
+            display: block;
         }
         
         .footer-section a:hover {
-            color: #ecf0f1;
+            color: #c41e3a;
         }
         
         .footer-bottom {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 30px;
             text-align: center;
-            padding-top: 2rem;
-            border-top: 1px solid #34495e;
-            color: #bdc3c7;
+        }
+        
+        .footer-bottom p {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            border-left: 3px solid;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #22c55e;
+        }
+        
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
+        }
+
+        @media (max-width: 1024px) {
+            .product-header {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .product-images {
+                position: static;
+            }
         }
 
         @media (max-width: 768px) {
-            .product-header {
-                flex-direction: column;
+            .nav-links {
+                gap: 15px;
             }
             
+            .nav-links a {
+                font-size: 12px;
+            }
+
+            .product-title {
+                font-size: 24px;
+            }
+
+            .current-price {
+                font-size: 24px;
+            }
+
             .main-image {
-                height: 300px;
+                height: 400px;
             }
 
             .volume-options {
-                flex-direction: column;
+                grid-template-columns: 1fr 1fr;
             }
 
-            .volume-option label {
-                width: 100%;
-            }
-
-            .review-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
+            .similar-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 15px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
+    </div>
+
+    <!-- Header -->
     <header>
         <nav class="container">
-            <div class="logo">
-                <span>🌸</span> Parfum Refill Premium
-            </div>
+            <a href="index.php" class="logo">Parfum Refill</a>
             <div class="nav-links">
-                <a href="index.php">Beranda</a>
+                <a href="index.php">Home</a>
                 <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Profil</a>
-                    <a href="orders.php">Pesanan</a>
+                    <a href="profile.php">Account</a>
+                    <a href="orders.php">Orders</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
-                    <a href="register.php">Daftar</a>
+                    <a href="register.php">Register</a>
                 <?php endif; ?>
                 <a href="cart.php" class="cart-icon">
                     🛒
@@ -772,9 +985,19 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
         </nav>
     </header>
 
+    <?php if (isset($_SESSION['message'])): ?>
+        <div class="container">
+            <div class="alert alert-<?= $_SESSION['message_type'] ?>">
+                <?= $_SESSION['message'] ?>
+            </div>
+        </div>
+        <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
+    <?php endif; ?>
+
     <section class="product-detail">
         <div class="container">
-            <a href="index.php" class="back-button">← Kembali</a>
+            <a href="index.php" class="back-button">← Back to Products</a>
+            
             <div class="product-header">
                 <div class="product-images">
                     <img src="<?= htmlspecialchars($main_image) ?>" alt="<?= htmlspecialchars($product['nama_parfum']) ?>" class="main-image" id="mainImage">
@@ -791,28 +1014,28 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                     <h1 class="product-title"><?= htmlspecialchars($product['nama_parfum']) ?></h1>
                     
                     <div class="product-rating">
-                        <?= renderStars($product['rating_average']) ?>
-                        <span>(<?= $product['total_reviews'] ?> reviews)</span>
+                        <div class="stars"><?= renderStars($product['rating_average']) ?></div>
+                        <span class="rating-text"><?= number_format($product['rating_average'], 1) ?> (<?= $product['total_reviews'] ?> reviews)</span>
                     </div>
                     
-                    <div class="product-price" id="displayPrice">
-                        <?php if (!empty($volume_options)): ?>
-                            <?= formatRupiah($volume_options[0]['price']) ?>
-                        <?php else: ?>
-                            <?= formatRupiah($product['final_price']) ?>
-                            <?php if ($product['discount_percentage'] > 0): ?>
-                                <span class="original-price"><?= formatRupiah($product['display_original_price']) ?></span>
-                                <span class="discount"><?= $product['discount_percentage'] ?>% OFF</span>
+                    <div class="product-price">
+                        <div class="price-wrapper" id="displayPrice">
+                            <?php if (!empty($volume_options)): ?>
+                                <span class="current-price"><?= formatRupiah($volume_options[0]['price']) ?></span>
+                            <?php else: ?>
+                                <span class="current-price"><?= formatRupiah($product['final_price']) ?></span>
+                                <?php if ($product['discount_percentage'] > 0): ?>
+                                    <span class="original-price"><?= formatRupiah($product['display_original_price']) ?></span>
+                                    <span class="discount-badge">-<?= $product['discount_percentage'] ?>%</span>
+                                <?php endif; ?>
                             <?php endif; ?>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="product-meta">
-                        <span id="stockDisplay">
-                            Stok: <?= !empty($volume_options) ? $volume_options[0]['stock'] : $product['stok'] ?>
-                        </span>
-                        <span>Terjual: <?= $product['total_sold'] ?></span>
-                        <span>Dilihat hari ini: <?= $product['views_today'] ?></span>
+                        </div>
+                        
+                        <div class="product-meta">
+                            <span id="stockDisplay">📦 <?= !empty($volume_options) ? $volume_options[0]['stock'] : $product['stok'] ?> in stock</span>
+                            <span>🔥 <?= $product['total_sold'] ?> sold</span>
+                            <span>👁️ <?= $product['views_today'] ?> views today</span>
+                        </div>
                     </div>
                     
                     <form method="POST" action="utils/add_to_cart.php" id="cartForm">
@@ -820,7 +1043,7 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                         
                         <?php if (!empty($volume_options)): ?>
                             <div class="volume-selection">
-                                <label class="volume-label">Pilih Volume:</label>
+                                <label class="volume-label">Select Volume:</label>
                                 <div class="volume-options">
                                     <?php foreach ($volume_options as $index => $volume): ?>
                                         <div class="volume-option <?= $volume['stock'] <= 0 ? 'out-of-stock' : '' ?>">
@@ -839,7 +1062,7 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                                                 <span class="volume-ml"><?= $volume['volume_ml'] ?> ml</span>
                                                 <span class="volume-price"><?= formatRupiah($volume['price']) ?></span>
                                                 <span class="volume-stock">
-                                                    <?= $volume['stock'] > 0 ? 'Stok: ' . $volume['stock'] : 'Stok Habis' ?>
+                                                    <?= $volume['stock'] > 0 ? $volume['stock'] . ' in stock' : 'Out of Stock' ?>
                                                 </span>
                                             </label>
                                         </div>
@@ -851,7 +1074,7 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                         <?php endif; ?>
 
                         <div class="quantity-selection">
-                            <label for="quantity" class="quantity-label">Jumlah:</label>
+                            <label for="quantity" class="quantity-label">Quantity:</label>
                             <div class="quantity-control">
                                 <button type="button" class="quantity-btn" onclick="decreaseQuantity()">−</button>
                                 <input type="number" name="quantity" id="quantity" value="1" min="1" max="<?= !empty($volume_options) ? $volume_options[0]['stock'] : $product['stok'] ?>" class="quantity-input" readonly>
@@ -860,15 +1083,16 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                         </div>
                         
                         <button type="submit" class="add-to-cart" id="addToCartBtn">
-                            🛒 Tambah ke Keranjang
+                            Add to Cart
                         </button>
                     </form>
                 </div>
             </div>
             
             <div class="product-description">
-                <h2>Deskripsi</h2>
+                <h2>Description</h2>
                 <p><?= nl2br(htmlspecialchars($product['deskripsi'])) ?></p>
+                <p>Long-lasting fragrance that stays with you all day.</p>
             </div>
             
             <?php if (!empty($product['scent_notes'])): ?>
@@ -880,7 +1104,7 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                 <?php if ($product['longevity_hours']): ?>
                 <div class="spec-item">
                     <div class="spec-title">⏱️ Longevity</div>
-                    <p><?= $product['longevity_hours'] ?> hours</p>
+                    <p>Up to <?= $product['longevity_hours'] ?> hours</p>
                 </div>
                 <?php endif; ?>
                 <div class="spec-item">
@@ -899,55 +1123,61 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                     <p><?= implode(', ', array_map('ucfirst', explode(',', $product['occasion']))) ?></p>
                 </div>
                 <?php endif; ?>
+                <div class="spec-item">
+                    <div class="spec-title">📏 Projection</div>
+                    <p>Up to 6 hours</p>
+                </div>
             </div>
             <?php endif; ?>
             
             <div class="reviews-section">
-                <h2>Tulis Review</h2>
+                <h2>Write a Review</h2>
                 <?php if (isLoggedIn()): ?>
                     <div class="review-form">
                         <form method="POST" action="utils/add_review.php">
                             <input type="hidden" name="product_id" value="<?= $product_id ?>">
                             <div class="form-group-review">
                                 <label for="rating">Rating:</label>
-                                <div class="stars-container">
-                                    <?php for ($i = 5; $i >= 1; $i--): ?>
-                                        <span class="star" onclick="setRating(<?= $i ?>)">⭐</span>
-                                    <?php endfor; ?>
+                                <div class="stars-input">
+                                    <span class="star-input" data-rating="1" onclick="setRating(1)">★</span>
+                                    <span class="star-input" data-rating="2" onclick="setRating(2)">★</span>
+                                    <span class="star-input" data-rating="3" onclick="setRating(3)">★</span>
+                                    <span class="star-input" data-rating="4" onclick="setRating(4)">★</span>
+                                    <span class="star-input" data-rating="5" onclick="setRating(5)">★</span>
                                 </div>
                                 <input type="hidden" id="rating" name="rating" value="0" required>
                             </div>
                             <div class="form-group-review">
-                                <label for="review_title">Judul Review:</label>
+                                <label for="review_title">Review Title:</label>
                                 <input type="text" id="review_title" name="review_title" required>
                             </div>
                             <div class="form-group-review">
-                                <label for="review_text">Review:</label>
+                                <label for="review_text">Your Review:</label>
                                 <textarea id="review_text" name="review_text" required></textarea>
                             </div>
-                            <button type="submit" class="submit-review">Kirim Review</button>
+                            <button type="submit" class="submit-review">Submit Review</button>
                         </form>
                     </div>
                 <?php else: ?>
-                    <p>Login untuk menulis review.</p>
+                    <p style="padding: 30px; background: #fafafa; text-align: center; color: #666;">Please <a href="login.php" style="color: #c41e3a; text-decoration: none;">login</a> to write a review.</p>
                 <?php endif; ?>
 
-                <h2>Reviews (<?= count($reviews) ?>)</h2>
+                <h2 style="margin-top: 60px;">Customer Reviews (<?= count($reviews) ?>)</h2>
                 <?php if (empty($reviews)): ?>
-                    <p>Belum ada review untuk produk ini.</p>
+                    <p style="padding: 30px; background: #fafafa; text-align: center; color: #666;">No reviews yet. Be the first to review this product!</p>
                 <?php else: ?>
                     <?php foreach ($reviews as $review): ?>
                         <div class="review">
                             <div class="review-header">
                                 <div>
                                     <span class="review-author"><?= htmlspecialchars($review['customer_name']) ?></span>
-                                    <span class="review-date"><?= date('d M Y', strtotime($review['created_at'])) ?></span>
+                                    <span class="review-date"> • <?= date('d M Y', strtotime($review['created_at'])) ?></span>
                                 </div>
                                 <?php if ($is_admin): ?>
                                     <div class="review-actions">
                                         <a href="utils/delete_review.php?id=<?= $review['id'] ?>&product_id=<?= $product_id ?>" 
                                            class="btn-delete" 
-                                           onclick="return confirm('Yakin ingin menghapus review ini?')">🗑️ Hapus</a>
+                                           onclick="return confirm('Are you sure you want to delete this review?')">Delete</a>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -957,7 +1187,7 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
                             <?php endif; ?>
                             <p><?= nl2br(htmlspecialchars($review['review_text'])) ?></p>
                             <?php if ($review['status'] === 'pending'): ?>
-                                <p class="review-status">Menunggu Persetujuan Admin</p>
+                                <p class="review-status">Pending Admin Approval</p>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
@@ -966,20 +1196,25 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             
             <?php if (!empty($similar_products)): ?>
             <div class="similar-products">
-                <h2>Produk Serupa</h2>
+                <h2>Similar Products</h2>
                 <div class="similar-grid">
                     <?php foreach ($similar_products as $similar): ?>
                         <div class="similar-card">
-                            <a href="product_detail.php?id=<?= $similar['id'] ?>">
-                                <img src="<?= htmlspecialchars($similar['primary_image'] ?? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjEwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNjY2MiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4rPC90ZXh0Pjwvc3ZnPg==') ?>" alt="<?= htmlspecialchars($similar['nama_parfum']) ?>" class="similar-image">
-                            </a>
+                            <div class="similar-image-wrapper">
+                                <a href="product_detail.php?id=<?= $similar['id'] ?>">
+                                    <img src="<?= htmlspecialchars($similar['primary_image'] ?? 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 500%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22500%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2280%22%3E🧴%3C/text%3E%3C/svg%3E') ?>" 
+                                         alt="<?= htmlspecialchars($similar['nama_parfum']) ?>" 
+                                         class="similar-image"
+                                         loading="lazy">
+                                </a>
+                            </div>
                             <div class="similar-info">
                                 <h3 class="similar-name">
-                                    <a href="product_detail.php?id=<?= $similar['id'] ?>" style="text-decoration: none; color: inherit;">
+                                    <a href="product_detail.php?id=<?= $similar['id'] ?>">
                                         <?= htmlspecialchars($similar['nama_parfum']) ?>
                                     </a>
                                 </h3>
-                                <p class="similar-price"><?= formatRupiah($similar['harga']) ?></p>
+                                <p class="similar-price"><?= formatRupiah($similar['final_price']) ?></p>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -989,29 +1224,37 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
         </div>
     </section>
 
+    <!-- Footer -->
     <footer>
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h3>🌸 Parfum Refill Premium</h3>
-                    <p>Toko parfum refill terpercaya dengan kualitas original dan harga terjangkau. Kami menjamin 100% kepuasan pelanggan.</p>
+                    <h3>About Us</h3>
+                    <p>Premium refill perfumes with authentic quality and affordable prices. 100% customer satisfaction guaranteed.</p>
                 </div>
                 <div class="footer-section">
-                    <h3>Layanan Pelanggan</h3>
-                    <p><a href="tel:+6281234567890">📞 +62812-3456-7890</a></p>
-                    <p><a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a></p>
-                    <p>🕒 Senin - Sabtu: 09:00 - 21:00</p>
+                    <h3>Customer Service</h3>
+                    <a href="tel:+6281234567890">📞 +62812-3456-7890</a>
+                    <a href="mailto:cs@parfumrefill.com">✉️ cs@parfumrefill.com</a>
+                    <p>🕒 Mon - Sat: 09:00 - 21:00</p>
                 </div>
                 <div class="footer-section">
-                    <h3>Jaminan Kualitas</h3>
-                    <p>✅ 100% Aroma Original</p>
-                    <p>🛡️ Garansi Puas atau Uang Kembali</p>
-                    <p>🚚 Gratis Ongkir min. Rp 500K</p>
-                    <p>⭐ Rating 4.8/5 dari 1000+ review</p>
+                    <h3>Quick Links</h3>
+                    <a href="#">Track Order</a>
+                    <a href="#">Shipping Info</a>
+                    <a href="#">Return Policy</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="footer-section">
+                    <h3>Our Guarantee</h3>
+                    <p>✅ 100% Original Scent</p>
+                    <p>🛡️ Money Back Guarantee</p>
+                    <p>🚚 Free Shipping (min. Rp 500K)</p>
+                    <p>⭐ 4.8/5 Rating from 1000+ reviews</p>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Parfum Refill Premium. Semua hak dilindungi undang-undang.</p>
+                <p>&copy; 2024 Parfum Refill Premium. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -1026,10 +1269,10 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             const stock = parseInt(radio.dataset.stock);
             
             const priceDisplay = document.getElementById('displayPrice');
-            priceDisplay.innerHTML = formatRupiah(price);
+            priceDisplay.innerHTML = '<span class="current-price">' + formatRupiah(price) + '</span>';
             
             const stockDisplay = document.getElementById('stockDisplay');
-            stockDisplay.textContent = 'Stok: ' + stock;
+            stockDisplay.textContent = '📦 ' + stock + ' in stock';
             
             const quantityInput = document.getElementById('quantity');
             quantityInput.max = stock;
@@ -1046,13 +1289,13 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             
             if (stock <= 0) {
                 addToCartBtn.disabled = true;
-                addToCartBtn.textContent = '❌ Stok Habis';
+                addToCartBtn.textContent = 'Out of Stock';
             } else if (quantity > stock) {
                 addToCartBtn.disabled = true;
-                addToCartBtn.textContent = '⚠️ Jumlah Melebihi Stok';
+                addToCartBtn.textContent = 'Quantity Exceeds Stock';
             } else {
                 addToCartBtn.disabled = false;
-                addToCartBtn.textContent = '🛒 Tambah ke Keranjang';
+                addToCartBtn.textContent = 'Add to Cart';
             }
         }
 
@@ -1098,26 +1341,14 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             }
         });
 
+        // Rating input system - fixed to show only selected stars
         function setRating(rating) {
-            const stars = document.querySelectorAll('.star');
-            let colorClass = '';
-            if (rating <= 2) {
-                colorClass = 'star-poor';
-            } else if (rating === 3) {
-                colorClass = 'star-average';
-            } else if (rating === 4) {
-                colorClass = 'star-good';
-            } else {
-                colorClass = 'star-excellent';
-            }
-            
+            const stars = document.querySelectorAll('.star-input');
             stars.forEach((star, index) => {
-                star.classList.remove('star-poor', 'star-average', 'star-good', 'star-excellent');
                 if (index < rating) {
-                    star.classList.add('selected', colorClass);
+                    star.classList.add('selected');
                 } else {
                     star.classList.remove('selected');
-                    star.classList.add('star-empty');
                 }
             });
             document.getElementById('rating').value = rating;

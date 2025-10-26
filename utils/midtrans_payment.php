@@ -74,7 +74,7 @@ if (strpos($order_id, 'temp_') === 0) {
             'customer_details' => $customer_details,
             'enabled_payments' => ['credit_card', 'dana'],
             'callbacks' => [
-                'finish' => 'https://4b98f7842ec8.ngrok-free.app/utils/finish_payment.php'
+                'finish' => 'https://c883c79de34c.ngrok-free.app/utils/finish_payment.php'
             ]
         ];
         
@@ -191,7 +191,7 @@ if (strpos($order_id, 'temp_') === 0) {
             'customer_details' => $customer_details,
             'enabled_payments' => ['credit_card', 'dana'],
             'callbacks' => [
-                'finish' => 'https://4b98f7842ec8.ngrok-free.app/utils/finish_payment.php'
+                'finish' => 'https://c883c79de34c.ngrok-free.app/utils/finish_payment.php'
             ]
         ];
         
