@@ -1,6 +1,3 @@
-Updated README.md:
-
-```
 🌸 TOKO PARFUM PREMIUM - Panduan Instalasi & Penggunaan (Update 2025)
 
 Website e-commerce parfum premium dengan sistem admin lengkap, integrasi **Midtrans Payment Gateway** (sandbox/production), dan WhatsApp untuk konfirmasi. Update ini termasuk fitur payment gateway, struktur folder baru (utils/), dan fix bug umum.
