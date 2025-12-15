@@ -116,6 +116,10 @@ $summary = $stmt->fetch();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan & Analytics - Admin</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../img/logo.png">
+    <link rel="shortcut icon" type="image/png" href="../img/logo.png">
+    <link rel="apple-touch-icon" href="../img/logo.png">
     <style>
         * {
             margin: 0;
@@ -147,29 +151,29 @@ $summary = $stmt->fetch();
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
-        .sidebar-header {
-            text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .admin-logo {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #2c2c2c;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-        }
-        
-        .admin-title {
-            font-size: 1.2rem;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
+       .sidebar-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.sidebar-logo {
+    height: 60px;
+    width: auto;
+    margin-bottom: 15px;
+    object-fit: contain;
+}
+
+.admin-logo {
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #2c2c2c;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
         .admin-name {
             font-size: 0.9rem;
             color: #999;
@@ -644,12 +648,13 @@ $summary = $stmt->fetch();
 <body>
     <div class="admin-container">
         <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="admin-logo">Parfum Refill</div>
-                <div class="admin-title">Admin Panel</div>
-                <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
-            </div>
+       <aside class="sidebar">
+    <div class="sidebar-header">
+        <img src="../img/logo.png" alt="UniqThings" class="sidebar-logo">
+        <div class="admin-logo">Parfum Refill</div>
+        <div class="admin-title">Admin Panel</div>
+        <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
+    </div>
             
             <nav>
                 <ul class="nav-menu">

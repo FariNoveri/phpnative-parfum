@@ -151,8 +151,9 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Parfum Refill Premium</title>
-    <meta name="description" content="Dashboard administrator Toko Parfum Refill Premium.">
+    <title>Admin Dashboard - UniqThings</title>
+    <meta name="description" content="Dashboard administrator UniqThings.">
+    <link rel="icon" href="../img/logo.png" type="image/png">
     <style>
         * {
             margin: 0;
@@ -192,12 +193,9 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
         }
         
         .admin-logo {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #2c2c2c;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
+            max-width: 80px;
+            margin: 0 auto 0.5rem;
+            display: block;
         }
         
         .admin-title {
@@ -587,7 +585,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="admin-logo">Parfum Refill</div>
+                <img src="../img/logo.png" alt="UniqThings" class="admin-logo">
                 <div class="admin-title">Admin Panel</div>
                 <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
             </div>
@@ -877,7 +875,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Parfum Refill Premium. All rights reserved.</p>
+                <p>&copy; 2024 UniqThings. All rights reserved.</p>
             </div>
         </div>
     </footer>

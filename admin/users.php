@@ -119,8 +119,12 @@ $user_stats = $stmt->fetch();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola User - Parfum Refill Premium</title>
+    <title>Kelola User - UniqThings</title>
     <meta name="description" content="Kelola user di Toko Parfum Refill Premium.">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../img/logo.png">
+    <link rel="shortcut icon" type="image/png" href="../img/logo.png">
+    <link rel="apple-touch-icon" href="../img/logo.png">
     <style>
         * {
             margin: 0;
@@ -153,27 +157,27 @@ $user_stats = $stmt->fetch();
         }
         
         .sidebar-header {
-            text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .admin-logo {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #2c2c2c;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-        }
-        
-        .admin-title {
-            font-size: 1.2rem;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.sidebar-logo {
+    height: 60px;
+    width: auto;
+    margin-bottom: 15px;
+    object-fit: contain;
+}
+
+.admin-logo {
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #2c2c2c;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
         
         .admin-name {
             font-size: 0.9rem;
@@ -544,11 +548,12 @@ $user_stats = $stmt->fetch();
     <div class="admin-container">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="admin-logo">Parfum Refill</div>
-                <div class="admin-title">Admin Panel</div>
-                <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
-            </div>
+    <div class="sidebar-header">
+        <img src="../img/logo.png" alt="UniqThings" class="sidebar-logo">
+        <div class="admin-logo">Parfum Refill</div>
+        <div class="admin-title">Admin Panel</div>
+        <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
+    </div>
             
             <nav>
                 <ul class="nav-menu">
@@ -724,96 +729,137 @@ $user_stats = $stmt->fetch();
     </div>
 
     <script>
-        let offset = 5;
-        let hasMoreUsers = true;
-        let isLoading = false;
-        const search = new URLSearchParams(window.location.search).get('search') || '';
-        const sort = new URLSearchParams(window.location.search).get('sort') || 'created_at DESC';
+    let offset = 5;
+    let hasMoreUsers = true;
+    let isLoading = false;
+    const search = new URLSearchParams(window.location.search).get('search') || '';
+    const sort = new URLSearchParams(window.location.search).get('sort') || 'created_at DESC';
 
-        const tbody = document.getElementById('users-tbody');
-        const loading = document.getElementById('loading');
-        const noMore = document.getElementById('no-more');
-        const modal = document.getElementById('user-modal');
-        const closeModal = document.querySelector('.close-modal');
-        const detailsContent = document.getElementById('user-details-content');
+    const tbody = document.getElementById('users-tbody');
+    const loading = document.getElementById('loading');
+    const noMore = document.getElementById('no-more');
+    const modal = document.getElementById('user-modal');
+    const closeModal = document.querySelector('.close-modal');
+    const detailsContent = document.getElementById('user-details-content');
 
-        // Automatic load on scroll
-        window.addEventListener('scroll', () => {
-            if (isLoading || !hasMoreUsers) return;
+    // Automatic load on scroll - FIXED: Prevent blink
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+        if (isLoading || !hasMoreUsers) return;
 
-            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
+        // Clear previous timeout to prevent multiple triggers
+        clearTimeout(scrollTimeout);
+        
+        scrollTimeout = setTimeout(() => {
+            const scrollPosition = window.innerHeight + window.scrollY;
+            const triggerPoint = document.body.offsetHeight - 300;
+            
+            if (scrollPosition >= triggerPoint) {
                 loadMoreUsers();
             }
-        });
+        }, 100); // Debounce 100ms
+    });
 
-        function loadMoreUsers() {
-            isLoading = true;
-            loading.style.display = 'block';
+    function loadMoreUsers() {
+        if (isLoading || !hasMoreUsers) return;
+        
+        isLoading = true;
+        loading.style.display = 'block';
 
-            fetch(`users.php?ajax=load_more&offset=${offset}&search=${encodeURIComponent(search)}&sort=${encodeURIComponent(sort)}`)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const rows = doc.querySelectorAll('tr');
-                    rows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+        fetch(`users.php?ajax=load_more&offset=${offset}&search=${encodeURIComponent(search)}&sort=${encodeURIComponent(sort)}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Network error');
+                return response.text();
+            })
+            .then(html => {
+                // Create temporary container
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                
+                // Extract rows only
+                const rows = temp.querySelectorAll('tr[data-user-id]');
+                
+                // Append rows with smooth animation
+                rows.forEach((row, index) => {
+                    // Add fade-in animation
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateY(20px)';
+                    row.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
                     
-                    const script = doc.querySelector('script');
-                    if (script) eval(script.textContent);
-
-                    offset += 5;
-                    isLoading = false;
-                    loading.style.display = 'none';
-
-                    if (!hasMoreUsers) {
-                        noMore.style.display = 'block';
-                    }
+                    tbody.appendChild(row);
+                    
+                    // Trigger animation with slight delay for each row
+                    setTimeout(() => {
+                        row.style.opacity = '1';
+                        row.style.transform = 'translateY(0)';
+                    }, index * 50);
                 });
-        }
+                
+                // Check for hasMore script
+                const scriptMatch = html.match(/hasMoreUsers\s*=\s*(true|false)/);
+                if (scriptMatch) {
+                    hasMoreUsers = scriptMatch[1] === 'true';
+                }
 
-        // View details
-        document.addEventListener('click', e => {
-            if (e.target.classList.contains('view-details')) {
-                const userId = e.target.dataset.userId;
-                fetchUserDetails(userId);
-            }
-        });
+                offset += 5;
+                isLoading = false;
+                loading.style.display = 'none';
 
-        function fetchUserDetails(userId) {
-            // Mock for now
+                if (!hasMoreUsers) {
+                    noMore.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Load error:', error);
+                isLoading = false;
+                loading.style.display = 'none';
+                alert('Gagal memuat data user. Silakan refresh halaman.');
+            });
+    }
+
+    // View details
+    document.addEventListener('click', e => {
+        if (e.target.classList.contains('view-details')) {
+            const userId = e.target.dataset.userId;
+            const row = e.target.closest('tr');
+            
+            const userName = row.querySelector('h4').textContent;
+            const userEmail = row.querySelector('.meta').textContent.split('•')[0].trim();
+            const userPhone = row.querySelector('.meta').textContent.split('•')[1].trim();
+            const totalOrders = row.cells[1].textContent;
+            const totalSpent = row.cells[2].textContent;
+            const lastOrder = row.cells[3].textContent;
+            const joinDate = row.cells[4].textContent;
+            
             detailsContent.innerHTML = `
                 <div class="user-details">
-                    <h2>User Details</h2>
-                    <p><strong>Nama:</strong> ${tbody.querySelector(`tr[data-user-id="${userId}"] h4`).textContent}</p>
-                    <p><strong>Email:</strong> example@email.com</p>
-                    <p><strong>Telepon:</strong> 08123456789</p>
-                    <p><strong>Alamat:</strong> Bandar Lampung</p>
-                    <p><strong>Daftar Pada:</strong> ${tbody.querySelector(`tr[data-user-id="${userId}"] td:nth-child(5)`).textContent}</p>
+                    <h2>Detail User</h2>
+                    <p><strong>Nama:</strong> ${userName}</p>
+                    <p><strong>Email:</strong> ${userEmail}</p>
+                    <p><strong>Telepon:</strong> ${userPhone}</p>
+                    <p><strong>Total Order:</strong> ${totalOrders}</p>
+                    <p><strong>Total Belanja:</strong> ${totalSpent}</p>
+                    <p><strong>Terakhir Order:</strong> ${lastOrder}</p>
+                    <p><strong>Daftar Pada:</strong> ${joinDate}</p>
                 </div>
                 
                 <div class="orders-list">
-                    <h3>History Pembelian</h3>
-                    <div class="order-item">
-                        <h4>Order #13 - 16/10/2025 02:12:08</h4>
-                        <p class="order-meta">Items: Black Orchid x1, fgdgj x1 • Total: Rp 2.000 • Status: Confirmed</p>
-                    </div>
-                    <!-- More orders -->
-                </div>
-                
-                <div class="vouchers-list">
-                    <h3>Voucher Digunakan</h3>
-                    <p>NEWBIE10 - Digunakan pada order #13</p>
-                    <!-- More vouchers -->
+                    <h3>Riwayat Pembelian</h3>
+                    <p style="color: #999; font-style: italic;">Loading order history...</p>
                 </div>
             `;
             modal.style.display = 'flex';
+            
+            // Fetch actual order history (you can implement this later)
+            // fetchOrderHistory(userId);
         }
+    });
 
-        // Close modal
-        closeModal.addEventListener('click', () => modal.style.display = 'none');
-        window.addEventListener('click', e => {
-            if (e.target === modal) modal.style.display = 'none';
-        });
-    </script>
+    // Close modal
+    closeModal.addEventListener('click', () => modal.style.display = 'none');
+    window.addEventListener('click', e => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+</script>
 </body>
 </html>

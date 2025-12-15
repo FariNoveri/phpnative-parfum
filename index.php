@@ -35,6 +35,21 @@ $sql = "SELECT p.*,
 
 $params = [];
 
+// Get statistics for hero banner
+$stats_sql = "SELECT 
+    (SELECT COUNT(DISTINCT user_id) FROM orders WHERE user_id IS NOT NULL AND status != 'cancelled') as total_customers,
+    (SELECT COUNT(DISTINCT p.id) FROM products p WHERE p.stok > 0) as total_brands,
+    (SELECT ROUND(AVG(rating_average), 1) FROM products WHERE rating_average > 0) as store_rating
+";
+$stats_stmt = $pdo->prepare($stats_sql);
+$stats_stmt->execute();
+$stats = $stats_stmt->fetch();
+
+// Set default values if no data
+$total_customers = $stats['total_customers'] ?? 0;
+$total_brands = $stats['total_brands'] ?? 0;
+$store_rating = $stats['store_rating'] ?? 0;
+
 // Search functionality
 if ($search) {
     $sql .= " AND (p.nama_parfum LIKE ? OR p.tags LIKE ? OR p.scent_notes LIKE ? OR p.season LIKE ? OR p.occasion LIKE ? OR p.sillage LIKE ?)";
@@ -180,8 +195,12 @@ function renderStars($rating, $size = 'sm') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parfum Refill Premium - Luxury Fragrances</title>
+    <title>Parfum Refill Premium - UniqThings</title>
     <meta name="description" content="Jual parfum refill berkualitas dengan aroma persis seperti original. Tom Ford, Dior, Chanel, dan brand premium lainnya.">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="shortcut icon" type="image/png" href="img/logo.png">
+    <link rel="apple-touch-icon" href="img/logo.png">
     <style>
         * {
             margin: 0;
@@ -210,6 +229,29 @@ function renderStars($rating, $size = 'sm') {
             text-align: center;
             color: #666;
         }
+
+        .logo {
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #2c2c2c;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo-img {
+    height: 50px;
+    width: auto;
+    object-fit: contain;
+}
+
+@media (max-width: 768px) {
+    .logo-img {
+        height: 40px;
+    }
+}
         
         header {
             background: #fff;
@@ -857,51 +899,53 @@ function renderStars($rating, $size = 'sm') {
         🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
     </div>
 
-    <!-- Header -->
-    <header>
-        <nav class="container">
-            <a href="index.php" class="logo">Parfum Refill</a>
-            <div class="nav-links">
-                <a href="index.php">Home</a>
-                <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Account</a>
-                    <a href="orders.php">Orders</a>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                    <a href="register.php">Register</a>
+<!-- Header -->
+<header>
+    <nav class="container">
+        <a href="index.php" class="logo">
+            <img src="img/logo.png" alt="UniqThings Parfum Refill" class="logo-img">
+        </a>
+        <div class="nav-links">
+            <a href="index.php">Home</a>
+            <?php if (isLoggedIn()): ?>
+                <a href="profile.php">Account</a>
+                <a href="orders.php">Orders</a>
+                <a href="logout.php">Logout</a>
+            <?php else: ?>
+                <a href="login.php">Login</a>
+                <a href="register.php">Register</a>
+            <?php endif; ?>
+            <a href="cart.php" class="cart-icon">
+                🛒
+                <?php if ($cart_count > 0): ?>
+                    <span class="cart-count"><?= $cart_count ?></span>
                 <?php endif; ?>
-                <a href="cart.php" class="cart-icon">
-                    🛒
-                    <?php if ($cart_count > 0): ?>
-                        <span class="cart-count"><?= $cart_count ?></span>
-                    <?php endif; ?>
-                </a>
-            </div>
-        </nav>
-    </header>
+            </a>
+        </div>
+    </nav>
+</header>
 
     <!-- Hero Banner -->
     <section class="hero-banner">
         <div class="container">
             <div class="hero-content">
-                <h1>Luxury Fragrances</h1>
+                <h1>UniqThings</h1>
                 <p>Rasakan sensasi wangi elegan dari parfume refill kami — tahan lama dan memikat sepanjang hari.</p>
                 
-                <div class="hero-stats">
-                    <div class="stat-item">
-                        <span class="stat-number">1000+</span>
-                        <span class="stat-label">Happy Customers</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">50+</span>
-                        <span class="stat-label">Premium Brands</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">4.8★</span>
-                        <span class="stat-label">Store Rating</span>
-                    </div>
-                </div>
+               <div class="hero-stats">
+    <div class="stat-item">
+        <span class="stat-number"><?= number_format($total_customers) ?>+</span>
+        <span class="stat-label">Happy Customers</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-number"><?= $total_brands ?>+</span>
+        <span class="stat-label">Premium Products</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-number"><?= number_format($store_rating, 1) ?>★</span>
+        <span class="stat-label">Store Rating</span>
+    </div>
+</div>
             </div>
         </div>
     </section>

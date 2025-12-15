@@ -119,7 +119,11 @@ $cart_count = $cart_result['total'] ?? 0;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout - Parfum Refill Premium</title>
+    <title>Checkout - UniqThings</title>
+     <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="shortcut icon" type="image/png" href="img/logo.png">
+    <link rel="apple-touch-icon" href="img/logo.png">
     <style>
         * {
             margin: 0;
@@ -133,6 +137,23 @@ $cart_count = $cart_result['total'] ?? 0;
             color: #2c2c2c;
             background-color: #fff;
         }
+
+        .logo {
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #2c2c2c;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo-img {
+    height: 50px;
+    width: auto;
+    object-fit: contain;
+}
         
         .container {
             max-width: 1400px;
@@ -526,30 +547,32 @@ $cart_count = $cart_result['total'] ?? 0;
         🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
     </div>
 
-    <!-- Header -->
-    <header>
-        <nav class="container">
-            <a href="index.php" class="logo">Parfum Refill</a>
-            <div class="nav-links">
-                <a href="index.php">Home</a>
-                <a href="cart.php">Cart</a>
-                <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Account</a>
-                    <a href="orders.php">Orders</a>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                    <a href="register.php">Register</a>
+<!-- Header -->
+<header>
+    <nav class="container">
+        <a href="index.php" class="logo">
+            <img src="img/logo.png" alt="UniqThings Parfum Refill" class="logo-img">
+        </a>
+        <div class="nav-links">
+            <a href="index.php">Home</a>
+            <a href="cart.php">Cart</a>
+            <?php if (isLoggedIn()): ?>
+                <a href="profile.php">Account</a>
+                <a href="orders.php">Orders</a>
+                <a href="logout.php">Logout</a>
+            <?php else: ?>
+                <a href="login.php">Login</a>
+                <a href="register.php">Register</a>
+            <?php endif; ?>
+            <a href="cart.php" class="cart-icon">
+                🛒
+                <?php if ($cart_count > 0): ?>
+                    <span class="cart-count"><?= $cart_count ?></span>
                 <?php endif; ?>
-                <a href="cart.php" class="cart-icon">
-                    🛒
-                    <?php if ($cart_count > 0): ?>
-                        <span class="cart-count"><?= $cart_count ?></span>
-                    <?php endif; ?>
-                </a>
-            </div>
-        </nav>
-    </header>
+            </a>
+        </div>
+    </nav>
+</header>
 
     <main class="main-content">
         <div class="container">

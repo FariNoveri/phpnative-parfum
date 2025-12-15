@@ -6,7 +6,7 @@ $action = $_GET['action'] ?? '';
 $order_id = (int)($_GET['id'] ?? 0);
 $load_more = $_GET['load_more'] ?? 0;
 $offset = (int)($_GET['offset'] ?? 0);
-$limit = 20;
+$limit = 5;
 
 // Handle status update
 if ($_POST && $action === 'update_status') {
@@ -174,8 +174,9 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Pesanan - Parfum Refill Premium</title>
-    <meta name="description" content="Kelola pesanan pelanggan di panel admin Toko Parfum Refill Premium.">
+    <title>Kelola Pesanan - UniqThings</title>
+    <meta name="description" content="Kelola pesanan pelanggan di panel admin UniqThings.">
+    <link rel="icon" href="../img/logo.png" type="image/png">
     <style>
         * {
             margin: 0;
@@ -215,12 +216,9 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         }
         
         .admin-logo {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #2c2c2c;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
+            max-width: 80px;
+            margin: 0 auto 0.5rem;
+            display: block;
         }
         
         .admin-title {
@@ -739,7 +737,7 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="admin-logo">Parfum Refill</div>
+                <img src="../img/logo.png" alt="UniqThings" class="admin-logo">
                 <div class="admin-title">Admin Panel</div>
                 <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
             </div>
@@ -793,7 +791,9 @@ $status_stats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         <!-- Main Content -->
         <main class="main-content">
             <div class="top-bar">
-                <h1 class="page-title">📦 Kelola Pesanan</h1>
+                <div style="display: flex; align-items: center;">
+                    <h1 class="page-title">📦 Kelola Pesanan</h1>
+                </div>
                 <div class="user-info">
                     <span>Selamat datang, <strong><?= $_SESSION['user_name'] ?></strong></span>
                     <a href="../logout.php" class="logout-btn">Logout</a>

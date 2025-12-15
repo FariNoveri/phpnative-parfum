@@ -33,7 +33,7 @@ if ($_POST) {
     $tags = trim($_POST['tags'] ?? '');
 
     if (!is_array($gambar)) {
-        $gambar = [];
+        $gambar = $_POST['gambar'] ?? [];
     }
     $gambar = array_filter($gambar, function($v) {
         return trim($v) !== '';
@@ -265,7 +265,8 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Produk - Admin</title>
+    <title>Kelola Produk - UniqThings</title>
+    <link rel="icon" href="../img/logo.png" type="image/png">
     <style>
         * {
             margin: 0;
@@ -305,12 +306,9 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         .admin-logo {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #2c2c2c;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
+            max-width: 80px;
+            margin: 0 auto 0.5rem;
+            display: block;
         }
         
         .admin-title {
@@ -765,6 +763,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
         }
         
         .progress-fill {
+            width: 100%;
             height: 100%;
             background: linear-gradient(135deg, #c41e3a 0%, #a01628 100%);
             width: 0%;
@@ -844,7 +843,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
     <div class="admin-container">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="admin-logo">Parfum Refill</div>
+                <img src="../img/logo.png" alt="UniqThings" class="admin-logo">
                 <div class="admin-title">Admin Panel</div>
                 <div class="admin-name"><?= $_SESSION['user_name'] ?></div>
             </div>
@@ -941,7 +940,7 @@ $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9Ij
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="original_price">Harga Asli (Rp) *</label>
-                                    <input type="number" id="original_price" name="original_price" required min="0" step="0.01"
+                                    <input type="number" id="original_price" name="original_price" required min="0" step="1000"
                                            value="<?= $form_data['original_price'] ?? $product['original_price'] ?? '' ?>" onchange="calculateDiscount()">
                                 </div>
                                 <div class="form-group">

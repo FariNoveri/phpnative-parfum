@@ -42,7 +42,11 @@ if ($_POST) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Parfum Refill Premium</title>
+    <title>Login - Uni</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="shortcut icon" type="image/png" href="img/logo.png">
+    <link rel="apple-touch-icon" href="img/logo.png">
     <style>
         * {
             margin: 0;
@@ -70,29 +74,40 @@ if ($_POST) {
         }
         
         .login-banner {
-            flex: 1;
-            background: linear-gradient(135deg, #c41e3a 0%, #8b1429 100%);
-            padding: 3rem;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-        
-        .banner-icon {
-            font-size: 4rem;
-            margin-bottom: 2rem;
-        }
-        
-        .banner-title {
-            font-size: 2rem;
-            font-weight: 300;
-            letter-spacing: 2px;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-        }
+    flex: 1;
+    background: linear-gradient(135deg, #c41e3a 0%, #8b1429 100%);
+    padding: 3rem;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.banner-logo {
+    margin-bottom: 2rem;
+}
+
+.banner-logo-img {
+    height: 120px;
+    width: auto;
+    object-fit: contain;
+    filter: brightness(0) invert(1); /* Makes logo white */
+}
+
+.banner-icon {
+    font-size: 4rem;
+    margin-bottom: 2rem;
+}
+
+.banner-title {
+    font-size: 2rem;
+    font-weight: 300;
+    letter-spacing: 2px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+}
         
         .banner-text {
             font-size: 0.95rem;
@@ -278,10 +293,11 @@ if ($_POST) {
 <body>
     <div class="login-wrapper">
         <div class="login-banner">
-            <div class="banner-icon">🧴</div>
-            <div class="banner-title">Parfum Refill</div>
-            <p class="banner-text">Experience luxury fragrances at affordable prices. Authentic scents, premium quality.</p>
-        </div>
+    <div class="banner-logo">
+        <img src="img/logo.png" alt="UniqThings Parfum Refill" class="banner-logo-img">
+    </div>
+    <p class="banner-text">Experience luxury fragrances at affordable prices. Authentic scents, premium quality.</p>
+</div>
         
         <div class="login-container">
             <div class="logo">Welcome Back</div>

@@ -138,7 +138,11 @@ $store_email = 'cs@parfumrefill.com';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konfirmasi Pesanan - Parfum Refill Premium</title>
+    <title>Konfirmasi Pesanan - UniqThings</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="shortcut icon" type="image/png" href="img/logo.png">
+    <link rel="apple-touch-icon" href="img/logo.png">
     <style>
         * {
             margin: 0;
@@ -185,13 +189,21 @@ $store_email = 'cs@parfumrefill.com';
         }
         
         .logo {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #2c2c2c;
-            text-transform: uppercase;
-            text-decoration: none;
-        }
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #2c2c2c;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo-img {
+    height: 50px;
+    width: auto;
+    object-fit: contain;
+}
         
         .nav-links {
             display: flex;
@@ -663,185 +675,294 @@ $store_email = 'cs@parfumrefill.com';
         }
         
         /* Print Styles */
-        @media print {
-            .no-print, header, .top-bar, footer, .step-indicator, .whatsapp-section, .print-section {
-                display: none !important;
-            }
-            
-            body {
-                background: white !important;
-                margin: 0;
-                padding: 0;
-                font-size: 10pt;
-                line-height: 1.3;
-                color: #000;
-            }
-            
-            .container {
-                max-width: 100% !important;
-                padding: 0.5cm !important;
-                margin: 0 !important;
-            }
-            
-            .main-content {
-                padding: 0 !important;
-            }
-            
-            h1 {
-                font-size: 14pt !important;
-                text-align: center !important;
-                margin-bottom: 10pt !important;
-            }
-            
-            .success-icon {
-                font-size: 32pt !important;
-                text-align: center !important;
-                margin-bottom: 10pt !important;
-            }
-            
-            .order-card {
-                box-shadow: none !important;
-                border: 1pt solid #000 !important;
-                page-break-inside: avoid;
-            }
-            
-            .order-header {
-                background: #2c2c2c !important;
-                color: white !important;
-                padding: 0.5cm !important;
-            }
-            
-            .order-id {
-                font-size: 16pt !important;
-                margin-bottom: 2pt !important;
-            }
-            
-            .order-date {
-                font-size: 11pt !important;
-            }
-            
-            .status-badge {
-                background: #c41e3a !important;
-                color: white !important;
-                padding: 4pt 8pt !important;
-                font-size: 10pt !important;
-                margin-top: 5pt !important;
-            }
-            
-            .order-details {
-                padding: 0.5cm !important;
-            }
-            
-            .detail-section h3 {
-                font-size: 12pt !important;
-                border-bottom: 1pt solid #000 !important;
-                padding-bottom: 5pt !important;
-                margin-bottom: 10pt !important;
-            }
-            
-            .customer-info {
-                grid-template-columns: 1fr !important;
-                gap: 5pt !important;
-            }
-            
-            .info-item {
-                background: #f8f8f8 !important;
-                padding: 8pt !important;
-                border-left: 2pt solid #c41e3a !important;
-                margin-bottom: 5pt !important;
-            }
-            
-            .info-label {
-                font-size: 10pt !important;
-                margin-bottom: 2pt !important;
-            }
-            
-            .info-value {
-                font-size: 11pt !important;
-            }
-            
-            .order-item {
-                padding: 5pt 0 !important;
-                border-bottom: 0.5pt solid #000 !important;
-                font-size: 11pt !important;
-            }
-            
-            .order-item:last-child {
-                border-bottom: none !important;
-            }
-            
-            .item-name {
-                font-weight: bold !important;
-            }
-            
-            .item-price {
-                font-weight: bold !important;
-            }
-            
-            .total-section {
-                margin-top: 10pt !important;
-                padding-top: 10pt !important;
-                border-top: 2pt solid #c41e3a !important;
-            }
-            
-            .total-final {
-                font-size: 16pt !important;
-            }
-            
-            .payment-section {
-                display: block !important;
-                background: white !important;
-                border: 1pt solid #000 !important;
-                padding: 0.5cm !important;
-                margin: 10pt 0 !important;
-                page-break-inside: avoid;
-            }
-            
-            .payment-section h3 {
-                font-size: 12pt !important;
-                border-bottom: 1pt solid #000 !important;
-                padding-bottom: 5pt !important;
-                margin-bottom: 10pt !important;
-            }
-            
-            .bank-info {
-                border: 1pt solid #000 !important;
-                padding: 8pt !important;
-                margin: 8pt 0 !important;
-            }
-            
-            /* Store Header for Print */
-            .store-header {
-                text-align: center;
-                margin-bottom: 20pt;
-                padding-bottom: 10pt;
-                border-bottom: 2pt solid #c41e3a;
-            }
-            
-            .store-name {
-                font-size: 18pt;
-                font-weight: bold;
-                margin-bottom: 2pt;
-            }
-            
-            .store-details {
-                font-size: 10pt;
-                margin-bottom: 5pt;
-            }
-            
-            .transaction-proof {
-                text-align: center;
-                margin: 10pt 0;
-                font-size: 12pt;
-                font-weight: bold;
-                color: #c41e3a;
-            }
-            
-            @page {
-                margin: 0.5cm;
-                size: A4;
-            }
-        }
+       /* Print Styles */
+@media print {
+    .no-print, header, .top-bar, footer, .step-indicator, .whatsapp-section, .print-section {
+        display: none !important;
+    }
+    
+    body {
+        background: white !important;
+        margin: 0;
+        padding: 0;
+        font-size: 10pt;
+        line-height: 1.3;
+        color: #000;
+    }
+    
+    .container {
+        max-width: 100% !important;
+        padding: 0.5cm !important;
+        margin: 0 !important;
+    }
+    
+    .main-content {
+        padding: 0 !important;
+    }
+    
+    /* Print Header dengan Logo */
+    .store-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 15pt;
+        padding-bottom: 10pt;
+        border-bottom: 2pt solid #c41e3a;
+        page-break-inside: avoid;
+    }
+    
+    .print-logo {
+        height: 60pt;
+        width: auto;
+        margin-bottom: 8pt;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .store-name {
+        font-size: 16pt;
+        font-weight: bold;
+        margin-bottom: 3pt;
+        color: #2c2c2c;
+        text-transform: uppercase;
+        letter-spacing: 1pt;
+    }
+    
+    .store-details {
+        font-size: 9pt;
+        margin-bottom: 8pt;
+        color: #666;
+        line-height: 1.4;
+    }
+    
+    .transaction-proof {
+        font-size: 11pt;
+        font-weight: bold;
+        margin: 8pt 0 5pt 0;
+        color: #c41e3a;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
+        border-top: 1pt solid #c41e3a;
+        border-bottom: 1pt solid #c41e3a;
+        padding: 5pt 0;
+    }
+    
+    .transaction-date {
+        font-size: 9pt;
+        color: #666;
+        margin-top: 5pt;
+    }
+    
+    h1 {
+        font-size: 14pt !important;
+        text-align: center !important;
+        margin-bottom: 10pt !important;
+        color: #2c2c2c !important;
+        text-transform: uppercase;
+        letter-spacing: 1pt;
+    }
+    
+    .success-icon {
+        display: none !important;
+    }
+    
+    .order-card {
+        box-shadow: none !important;
+        border: 1pt solid #000 !important;
+        page-break-inside: avoid;
+        margin-bottom: 10pt;
+    }
+    
+    .order-header {
+        background: #f8f8f8 !important;
+        color: #2c2c2c !important;
+        padding: 8pt !important;
+        border-bottom: 2pt solid #c41e3a !important;
+    }
+    
+    .order-id {
+        font-size: 14pt !important;
+        margin-bottom: 3pt !important;
+        font-weight: bold;
+        color: #000 !important;
+    }
+    
+    .order-date {
+        font-size: 10pt !important;
+        color: #666 !important;
+    }
+    
+    .status-badge {
+        background: #e0e0e0 !important;
+        color: #000 !important;
+        padding: 3pt 8pt !important;
+        font-size: 9pt !important;
+        margin-top: 5pt !important;
+        border: 1pt solid #000 !important;
+    }
+    
+    .order-details {
+        padding: 10pt !important;
+    }
+    
+    .detail-section {
+        margin-bottom: 15pt !important;
+        page-break-inside: avoid;
+    }
+    
+    .detail-section h3 {
+        font-size: 11pt !important;
+        border-bottom: 1pt solid #c41e3a !important;
+        padding-bottom: 5pt !important;
+        margin-bottom: 8pt !important;
+        color: #2c2c2c !important;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
+    }
+    
+    .customer-info {
+        display: table !important;
+        width: 100% !important;
+        border: 1pt solid #e0e0e0 !important;
+        border-collapse: collapse !important;
+    }
+    
+    .info-item {
+        display: table-row !important;
+        background: white !important;
+        border: none !important;
+        padding: 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    .info-item .info-label,
+    .info-item .info-value {
+        display: table-cell !important;
+        border: 1pt solid #e0e0e0 !important;
+        padding: 5pt !important;
+    }
+    
+    .info-label {
+        font-size: 9pt !important;
+        font-weight: bold !important;
+        width: 35% !important;
+        background: #f8f8f8 !important;
+        color: #2c2c2c !important;
+        text-transform: uppercase;
+    }
+    
+    .info-value {
+        font-size: 10pt !important;
+        color: #000 !important;
+    }
+    
+    .order-item {
+        display: table-row !important;
+        padding: 0 !important;
+        border: none !important;
+        font-size: 10pt !important;
+        page-break-inside: avoid;
+    }
+    
+    .order-item .item-info,
+    .order-item .item-quantity,
+    .order-item .item-price {
+        display: table-cell !important;
+        border: 1pt solid #e0e0e0 !important;
+        padding: 6pt !important;
+        vertical-align: middle !important;
+    }
+    
+    .item-name {
+        font-weight: normal !important;
+        color: #000 !important;
+    }
+    
+    .item-quantity {
+        text-align: center !important;
+        width: 15% !important;
+    }
+    
+    .item-price {
+        text-align: right !important;
+        font-weight: bold !important;
+        width: 25% !important;
+    }
+    
+    .total-section {
+        margin-top: 10pt !important;
+        padding-top: 10pt !important;
+        border-top: 2pt solid #c41e3a !important;
+        page-break-inside: avoid;
+    }
+    
+    .total-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        padding: 3pt 0 !important;
+        font-size: 10pt !important;
+    }
+    
+    .total-final {
+        font-size: 14pt !important;
+        font-weight: bold !important;
+        margin-top: 5pt !important;
+        padding-top: 5pt !important;
+        border-top: 1pt solid #000 !important;
+    }
+    
+    .payment-section {
+        display: block !important;
+        background: #f8f8f8 !important;
+        border: 1pt solid #c41e3a !important;
+        padding: 10pt !important;
+        margin: 10pt 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    .payment-section h3 {
+        font-size: 11pt !important;
+        border-bottom: 1pt solid #c41e3a !important;
+        padding-bottom: 5pt !important;
+        margin-bottom: 8pt !important;
+        color: #2c2c2c !important;
+    }
+    
+    .bank-info {
+        border: 1pt solid #000 !important;
+        padding: 8pt !important;
+        margin: 8pt 0 !important;
+        background: white !important;
+        font-size: 10pt !important;
+    }
+    
+    .alert {
+        display: block !important;
+        border: 1pt solid #000 !important;
+        padding: 8pt !important;
+        margin: 10pt 0 !important;
+        background: #f8f8f8 !important;
+        color: #000 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Footer untuk print */
+    .print-footer {
+        display: block !important;
+        margin-top: 15pt;
+        padding-top: 10pt;
+        border-top: 1pt solid #e0e0e0;
+        text-align: center;
+        font-size: 8pt;
+        color: #666;
+    }
+    
+    @page {
+        margin: 1cm;
+        size: A4 portrait;
+    }
+}
     </style>
     <script>
         function printPage() {
@@ -865,29 +986,31 @@ $store_email = 'cs@parfumrefill.com';
         🚚 Gratis Ongkir Min. Rp 500K | 💯 Garansi Puas atau Uang Kembali
     </div>
 
-    <!-- Header -->
-    <header>
-        <nav class="container">
-            <a href="index.php" class="logo">Parfum Refill</a>
-            <div class="nav-links">
-                <a href="index.php">Home</a>
-                <?php if (isLoggedIn()): ?>
-                    <a href="profile.php">Account</a>
-                    <a href="orders.php">Orders</a>
-                    <a href="logout.php">Logout</a>
-                <?php else: ?>
-                    <a href="login.php">Login</a>
-                    <a href="register.php">Register</a>
+<!-- Header -->
+<header>
+    <nav class="container">
+        <a href="index.php" class="logo">
+            <img src="img/logo.png" alt="UniqThings Parfum Refill" class="logo-img">
+        </a>
+        <div class="nav-links">
+            <a href="index.php">Home</a>
+            <?php if (isLoggedIn()): ?>
+                <a href="profile.php">Account</a>
+                <a href="orders.php">Orders</a>
+                <a href="logout.php">Logout</a>
+            <?php else: ?>
+                <a href="login.php">Login</a>
+                <a href="register.php">Register</a>
+            <?php endif; ?>
+            <a href="cart.php" class="cart-icon">
+                🛒
+                <?php if ($cart_count > 0): ?>
+                    <span class="cart-count"><?= $cart_count ?></span>
                 <?php endif; ?>
-                <a href="cart.php" class="cart-icon">
-                    🛒
-                    <?php if ($cart_count > 0): ?>
-                        <span class="cart-count"><?= $cart_count ?></span>
-                    <?php endif; ?>
-                </a>
-            </div>
-        </nav>
-    </header>
+            </a>
+        </div>
+    </nav>
+</header>
 
     <main class="main-content">
         <div class="container">
@@ -1051,12 +1174,13 @@ $store_email = 'cs@parfumrefill.com';
     </main>
 
     <!-- Print-only Store Header -->
-    <div class="store-header" style="display: none;">
-        <div class="store-name"><?= $store_name ?></div>
-        <div class="store-details"><?= $store_address ?> | <?= $store_phone ?> | <?= $store_email ?></div>
-        <div class="transaction-proof">BUKTI TRANSAKSI / STATEMENT PEMBELIAN</div>
-    </div>
-
+<div class="store-header" style="display: none;">
+    <img src="img/logo.png" alt="UniqThings" class="print-logo">
+    <div class="store-name"><?= $store_name ?></div>
+    <div class="store-details"><?= $store_address ?> | <?= $store_phone ?> | <?= $store_email ?></div>
+    <div class="transaction-proof">BUKTI TRANSAKSI / STATEMENT PEMBELIAN</div>
+    <div class="transaction-date">Tanggal: <?= date('d M Y H:i:s', strtotime($order['created_at'])) ?></div>
+</div>
     <!-- Footer -->
     <footer>
         <div class="container">
