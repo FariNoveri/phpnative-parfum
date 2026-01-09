@@ -174,6 +174,20 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
             color: #2c2c2c;
             text-transform: uppercase;
             text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-img {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        @media (max-width: 768px) {
+            .logo-img {
+                height: 40px;
+            }
         }
         
         .nav-links {
@@ -964,7 +978,9 @@ $is_admin = isLoggedIn() && ($_SESSION['role'] ?? '' ) === 'admin';
     <!-- Header -->
     <header>
         <nav class="container">
-            <a href="index.php" class="logo">Parfum Refill</a>
+            <a href="index.php" class="logo">
+                <img src="img/logo.png" alt="UniqThings Parfum Refill" class="logo-img">
+            </a>
             <div class="nav-links">
                 <a href="index.php">Home</a>
                 <?php if (isLoggedIn()): ?>

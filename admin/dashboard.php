@@ -165,7 +165,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: #2c2c2c;
-            background-color: #fff;
+            background-color: #f8f8f8;
         }
         
         .admin-container {
@@ -183,6 +183,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             height: 100vh;
             overflow-y: auto;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 100;
         }
         
         .sidebar-header {
@@ -251,17 +252,20 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             flex: 1;
             margin-left: 280px;
             padding: 2rem;
+            padding-bottom: 400px; /* Space for footer */
+            background-color: #f8f8f8;
         }
         
         /* Top Bar */
         .top-bar {
             background: #fff;
-            padding: 15px 0;
+            padding: 15px 20px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-radius: 10px;
         }
         
         .page-title {
@@ -315,6 +319,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
         
         .stat-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         
         .stat-icon {
@@ -358,6 +363,28 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             font-size: 1.3rem;
             font-weight: 300;
             letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .export-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 15px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .export-btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
         }
         
         .section-content {
@@ -367,7 +394,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
         .chart-container {
             height: 300px;
             width: 100%;
-            margin-bottom: 1rem;
+            margin-bottom: 2rem;
         }
         
         .order-item {
@@ -490,29 +517,29 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
         .btn-secondary:hover {
             border-color: #c41e3a;
             color: #c41e3a;
-        }
-        
-        /* Top Bar */
-        .top-bar-global {
-            background: #f8f8f8;
-            padding: 8px 0;
-            font-size: 12px;
-            text-align: center;
-            color: #666;
+            background: transparent;
         }
         
         /* Footer */
         footer {
-            background: #f8f8f8;
-            padding: 60px 0 30px;
-            margin-top: 80px;
+            background: #2c2c2c;
+            color: #fff;
+            padding: 40px 0 20px;
+            margin-left: 280px;
+            margin-top: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
         }
         
         .footer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 40px;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
         
         .footer-section h3 {
@@ -521,13 +548,13 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 20px;
-            color: #2c2c2c;
+            color: #fff;
         }
         
         .footer-section p,
         .footer-section a {
             font-size: 13px;
-            color: #666;
+            color: #aaa;
             text-decoration: none;
             line-height: 2;
             display: block;
@@ -538,8 +565,8 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
         }
         
         .footer-bottom {
-            border-top: 1px solid #e0e0e0;
-            padding-top: 30px;
+            border-top: 1px solid #444;
+            padding-top: 20px;
             text-align: center;
         }
         
@@ -558,6 +585,11 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             .main-content {
                 margin-left: 0;
                 padding: 1rem;
+                padding-bottom: 400px;
+            }
+            
+            footer {
+                margin-left: 0;
             }
             
             .content-grid {
@@ -569,11 +601,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             }
             
             .chart-container {
-                height: 200px;
-            }
-            
-            .top-bar-global {
-                font-size: 11px;
+                height: 250px;
             }
         }
     </style>
@@ -740,7 +768,10 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             <div class="content-grid">
                 <!-- Charts -->
                 <div class="section-card">
-                    <div class="section-header"> Statistik Penjualan</div>
+                    <div class="section-header">
+                        <span>📊 Statistik Penjualan</span>
+                        <button onclick="exportAllCharts()" class="export-btn">📥 Export Semua Chart</button>
+                    </div>
                     <div class="section-content">
                         <div class="chart-container">
                             <canvas id="categoryChart"></canvas>
@@ -765,11 +796,14 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
                 <!-- Low Stock Alert -->
                 <div class="section-card">
-                    <div class="section-header"> Stok Menipis</div>
+                    <div class="section-header">
+                        <span>⚠️ Stok Menipis</span>
+                        <button onclick="exportLowStock()" class="export-btn">📥 Export CSV</button>
+                    </div>
                     <div class="section-content">
                         <?php if (empty($low_stock)): ?>
                             <p style="text-align: center; color: #666; padding: 2rem;">
-                                 Semua produk stok aman
+                                ✅ Semua produk stok aman
                             </p>
                         <?php else: ?>
                             <?php foreach ($low_stock as $product): ?>
@@ -783,7 +817,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
                             <?php endforeach; ?>
                             
                             <div class="alert alert-warning" style="margin-top: 1rem;">
-                                 <strong>Perhatian:</strong> Ada produk dengan stok rendah yang perlu direstok segera.
+                                ⚠️ <strong>Perhatian:</strong> Ada produk dengan stok rendah yang perlu direstok segera.
                             </div>
                         <?php endif; ?>
                         
@@ -795,7 +829,10 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
                 <!-- Recent Orders -->
                 <div class="section-card">
-                    <div class="section-header"> Pesanan Terbaru</div>
+                    <div class="section-header">
+                        <span>🛒 Pesanan Terbaru</span>
+                        <button onclick="exportRecentOrders()" class="export-btn">📥 Export CSV</button>
+                    </div>
                     <div class="section-content">
                         <?php if (empty($recent_orders)): ?>
                             <p style="text-align: center; color: #666; padding: 2rem;">
@@ -830,14 +867,15 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
             <!-- Quick Actions -->
             <div style="margin-top: 2rem;">
                 <div class="section-card">
-                    <div class="section-header"> Aksi Cepat</div>
+                    <div class="section-header">⚡ Aksi Cepat</div>
                     <div class="section-content">
                         <div class="quick-actions">
-                            <a href="products.php?action=add" class="btn"> Tambah Produk</a>
-                            <a href="orders.php?status=pending" class="btn btn-secondary"> Cek Pesanan Pending</a>
-                            <a href="reviews.php" class="btn"> Kelola Review</a>
-                            <a href="reports.php" class="btn btn-secondary"> Lihat Laporan</a>
-                            <a href="../index.php" target="_blank" class="btn"> Preview Website</a>
+                            <a href="products.php?action=add" class="btn">➕ Tambah Produk</a>
+                            <a href="orders.php?status=pending" class="btn btn-secondary">⏳ Cek Pesanan Pending</a>
+                            <a href="reviews.php" class="btn">⭐ Kelola Review</a>
+                            <a href="reports.php" class="btn btn-secondary">📈 Lihat Laporan</a>
+                            <a href="../index.php" target="_blank" class="btn">🌐 Preview Website</a>
+                            <button onclick="exportDashboardData()" class="btn">📥 Export Dashboard Data</button>
                         </div>
                     </div>
                 </div>
@@ -881,9 +919,12 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
     </footer>
 
     <script>
+        // Store chart instances
+        let charts = {};
+
         // Chart.js for Category Sales
         const ctxCategory = document.getElementById('categoryChart').getContext('2d');
-        new Chart(ctxCategory, {
+        charts.category = new Chart(ctxCategory, {
             type: 'pie',
             data: {
                 labels: ['Pria', 'Wanita', 'Unisex'],
@@ -915,7 +956,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
         // Chart.js for Revenue Trend
         const ctxOrderTrend = document.getElementById('orderTrendChart').getContext('2d');
-        new Chart(ctxOrderTrend, {
+        charts.trend = new Chart(ctxOrderTrend, {
             type: 'line',
             data: {
                 labels: <?= json_encode(array_keys($order_trend)) ?>,
@@ -950,7 +991,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
         // Chart.js for Top Products Overall
         const ctxTop = document.getElementById('topProductsChart').getContext('2d');
-        new Chart(ctxTop, {
+        charts.topProducts = new Chart(ctxTop, {
             type: 'bar',
             data: {
                 labels: <?= json_encode($top_labels) ?>,
@@ -977,7 +1018,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
         // Chart.js for Top Wanita
         const ctxWanita = document.getElementById('topWanitaChart').getContext('2d');
-        new Chart(ctxWanita, {
+        charts.topWanita = new Chart(ctxWanita, {
             type: 'bar',
             data: {
                 labels: <?= json_encode($top_wanita_labels) ?>,
@@ -1004,7 +1045,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
         // Chart.js for Top Pria
         const ctxPria = document.getElementById('topPriaChart').getContext('2d');
-        new Chart(ctxPria, {
+        charts.topPria = new Chart(ctxPria, {
             type: 'bar',
             data: {
                 labels: <?= json_encode($top_pria_labels) ?>,
@@ -1031,7 +1072,7 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
 
         // Chart.js for Top Unisex
         const ctxUnisex = document.getElementById('topUnisexChart').getContext('2d');
-        new Chart(ctxUnisex, {
+        charts.topUnisex = new Chart(ctxUnisex, {
             type: 'bar',
             data: {
                 labels: <?= json_encode($top_unisex_labels) ?>,
@@ -1055,6 +1096,80 @@ $revenue_year = $stmt->fetchColumn() ?? 0;
                 }
             }
         });
+
+        // Export Functions
+        function downloadCSV(filename, csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportLowStock() {
+            let csv = 'Nama Produk,Brand,Stok\n';
+            <?php foreach ($low_stock as $product): ?>
+            csv += '<?= addslashes($product['nama_parfum']) ?>,<?= addslashes($product['brand']) ?>,<?= $product['stok'] ?>\n';
+            <?php endforeach; ?>
+            
+            downloadCSV('low_stock_products.csv', csv);
+        }
+
+        function exportRecentOrders() {
+            let csv = 'Order ID,Customer,Items,Total,Status,Tanggal\n';
+            <?php foreach ($recent_orders as $order): ?>
+            csv += '<?= $order['id'] ?>,<?= addslashes($order['nama_customer']) ?>,<?= $order['item_count'] ?>,<?= $order['total_harga'] ?>,<?= $order['status'] ?>,<?= date('Y-m-d', strtotime($order['created_at'])) ?>\n';
+            <?php endforeach; ?>
+            
+            downloadCSV('recent_orders.csv', csv);
+        }
+
+        function exportAllCharts() {
+            // Export category sales
+            let categoryCsv = 'Kategori,Total Sales\n';
+            categoryCsv += 'Pria,<?= $category_sales['pria'] ?? 0 ?>\n';
+            categoryCsv += 'Wanita,<?= $category_sales['wanita'] ?? 0 ?>\n';
+            categoryCsv += 'Unisex,<?= $category_sales['unisex'] ?? 0 ?>\n';
+            downloadCSV('category_sales.csv', categoryCsv);
+
+            // Export revenue trend
+            let trendCsv = 'Tanggal,Revenue\n';
+            <?php foreach ($order_trend as $date => $revenue): ?>
+            trendCsv += '<?= $date ?>,<?= $revenue ?>\n';
+            <?php endforeach; ?>
+            downloadCSV('revenue_trend.csv', trendCsv);
+
+            // Export top products
+            let topCsv = 'Produk,Unit Terjual\n';
+            <?php foreach ($top_products as $product): ?>
+            topCsv += '<?= addslashes($product['nama_parfum']) ?>,<?= $product['total_sold'] ?>\n';
+            <?php endforeach; ?>
+            downloadCSV('top_products.csv', topCsv);
+
+            alert('Semua chart berhasil di-export!');
+        }
+
+        function exportDashboardData() {
+            let csv = 'Metrik,Nilai\n';
+            csv += 'Total Produk,<?= $stats['total_products'] ?>\n';
+            csv += 'Total Pesanan,<?= $stats['total_orders'] ?>\n';
+            csv += 'Total User,<?= $stats['total_users'] ?>\n';
+            csv += 'Pesanan Pending,<?= $stats['pending_orders'] ?>\n';
+            csv += 'Total Review,<?= $total_reviews ?>\n';
+            csv += 'Review Pending,<?= $pending_reviews ?>\n';
+            csv += 'Total Revenue,<?= $stats['total_revenue'] ?>\n';
+            csv += 'Pesanan Hari Ini,<?= $stats['today_orders'] ?>\n';
+            csv += 'Revenue Hari Ini,<?= $revenue_today ?>\n';
+            csv += 'Revenue Minggu Ini,<?= $revenue_week ?>\n';
+            csv += 'Revenue Bulan Ini,<?= $revenue_month ?>\n';
+            csv += 'Revenue Tahun Ini,<?= $revenue_year ?>\n';
+            
+            downloadCSV('dashboard_summary.csv', csv);
+        }
     </script>
 </body>
 </html>
